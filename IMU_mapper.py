@@ -1,7 +1,7 @@
 import sys, csv
 from pyfirmata import Arduino, util
-from matplotlib import pyplot
-import numpy as np
+#from matplotlib import pyplot
+#import numpy as np
 import time
 
 print("hello")

@@ -1,12 +1,13 @@
-from pyfirmata import Arduino, util
 #from matplotlib import pyplot
 #import numpy as np
 
+from LMD_firmata_addons import LMD_firmata_addons
+from PyMata.pymata import PyMata
 import time
 import sys
 
 print("hello")
-board = Arduino('COM3')                         # Specify the serial port found through Device Manager
+board = LMD_firmata_addons('COM3')
 
 
 def imu_data(x, y, z):
