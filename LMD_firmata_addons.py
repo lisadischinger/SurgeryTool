@@ -68,7 +68,6 @@ class LMD_firmata_addons(PyMata):
     def _response_handler(self, data):
         """Callback invoked when a circuit playground sysex command is received.
         """
-        print(' within the _response_handler')
         logger.debug('LMD response: 0x{0}'.format(hexlify(bytearray(data))))
         if len(data) < 1:
             logger.warning('Received response with no data!')
@@ -97,5 +96,4 @@ class LMD_firmata_addons(PyMata):
             - Z angular acceleration
             """
         self._imu_callback = callback
-        print(' sending off data to through the sysex')
         self._command_handler.send_sysex(LMD_COMMAND, [LMD_IMU_READ])
