@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f15421a3-0b4c-44a9-b952-f39c814ec575" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LMD_firmata_addons.py" beforeDir="false" afterPath="$PROJECT_DIR$/LMD_firmata_addons.py" afterDir="false" />
-    </list>
+    <list default="true" id="f15421a3-0b4c-44a9-b952-f39c814ec575" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -13,15 +10,15 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/SurgeryTool$IMU_mapper.coverage" NAME="IMU_mapper Coverage Results" MODIFIED="1544504709448" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/SurgeryTool$BNO055_lmd.coverage" NAME="BNO055_lmd Coverage Results" MODIFIED="1544646962501" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/SurgeryTool$BNO055_lmd.coverage" NAME="BNO055_lmd Coverage Results" MODIFIED="1544654929384" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/BNO055_lmd.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="391">
-              <caret line="23" selection-start-line="23" selection-end-line="23" selection-end-column="13" />
+              <caret line="23" column="13" lean-forward="true" selection-start-line="23" selection-start-column="13" selection-end-line="23" selection-end-column="13" />
               <folding>
                 <element signature="e#52#101#0" expanded="true" />
               </folding>
@@ -29,7 +26,7 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/LMD_firmata_addons.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="558">
@@ -190,12 +187,12 @@
       <workItem from="1543434370466" duration="2624000" />
       <workItem from="1544475060916" duration="8018000" />
       <workItem from="1544502967588" duration="4516000" />
-      <workItem from="1544646470399" duration="1061000" />
+      <workItem from="1544646470399" duration="1279000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="16219000" />
+    <option name="totallyTimeSpent" value="16437000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="1912" y="-8" width="1616" height="1176" extended-state="6" />
@@ -262,22 +259,22 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/BNO055_lmd.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="391">
-          <caret line="23" selection-start-line="23" selection-end-line="23" selection-end-column="13" />
-          <folding>
-            <element signature="e#52#101#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/LMD_firmata_addons.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="558">
           <caret line="97" column="37" selection-start-line="97" selection-start-column="37" selection-end-line="97" selection-end-column="37" />
           <folding>
             <element signature="e#1#14#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/BNO055_lmd.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="391">
+          <caret line="23" column="13" lean-forward="true" selection-start-line="23" selection-start-column="13" selection-end-line="23" selection-end-column="13" />
+          <folding>
+            <element signature="e#52#101#0" expanded="true" />
           </folding>
         </state>
       </provider>
