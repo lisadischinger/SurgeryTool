@@ -10,15 +10,23 @@ print("hello")
 board = LMD_firmata_addons('COM3')
 
 
-def imu_data(x, y, z):
+def imu_data(omega, theta, zeta):
     print(" Receiving IMU Data")
-    print('X = {0}'.format(x))
-    print('Y = {0}'.format(y))
-    print('Z = {0}'.format(z))
+    print('Omega = {0}'.format(omega))
+    print('Theta = {0}'.format(theta))
+    print('Zeta = {0}'.format(zeta))
+
+
+def accel_data(x, y, z):
+    print(" Receiving Acceleration Data in (m/s^2)")
+    print('x = {0}'.format(x))
+    print('y = {0}'.format(y))
+    print('z = {0}'.format(z))
 
 
 while True:
     board.read_imu(imu_data)
+    board.read_accel(accel_data)
     time.sleep(1.0)
 
 board.close()

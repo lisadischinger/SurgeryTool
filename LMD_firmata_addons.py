@@ -9,10 +9,14 @@ from PyMata.pymata import PyMata
 
 # Constants that define the Circuit Playground Firmata command values.
 
-LMD_COMMAND                 = 0x01                            # Byte that identifies all Circuit Playground commands.
-LMD_IMU_READ                = 0x10                            # Return the current x, y, z accelerometer values.
-LMD_IMU_READ_REPLY          = 0x11                            # Result of an IMU read.  Includes 3 floating point values
-                                                              # (4 bytes each) with x, y, z angular acceleration
+LMD_COMMAND                 = 0x01                          # Byte that identifies all Circuit Playground commands.
+LMD_IMU_READ                = 0x10                          # Return the current x, y, z accelerometer values.
+LMD_IMU_READ_REPLY          = 0x11                          # Result of an IMU read.  Includes 3 floating point values
+                                                            # (4 bytes each) with omega, theat, zeta angles
+
+LMD_ACCEL_READ              = 0X20                          #RETURN THE CURRENT LINEAR ACCELERATION VALUES, a_x, a_y, a_z
+LMD_ACCEL_READ_REPLY        = 0X21                          #Result of an linear accel read, includes 3 floating points
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +31,7 @@ class LMD_firmata_addons(PyMata):
         self._command_handler.command_dispatch.update({LMD_COMMAND: [self._response_handler, 1]})
         # Setup configured callbacks to null.
         self._imu_callback = None
+        self._accel_callback = None
 
     def _parse_firmata_byte(self, data):
         """Parse a byte value from two 7-bit byte firmata response bytes."""
@@ -62,7 +67,6 @@ class LMD_firmata_addons(PyMata):
         for i in range(4):
             raw_bytes[i] = self._parse_firmata_byte(data[i * 2:i * 2 + 2])
         # Use struct unpack to convert to floating point value.
-
         return struct.unpack('<l', raw_bytes)[0]
 
     def _response_handler(self, data):
@@ -75,25 +79,47 @@ class LMD_firmata_addons(PyMata):
         # Check what type of response has been received.
         command = data[0] & 0x7F
         if command == LMD_IMU_READ_REPLY:
-            # Parse accelerometer response.
+            # Parse IMU response.
             if len(data) < 26:
                 logger.warning('Received IMU response with not enough data!')
                 print(' received the IMU response')
                 return
+            omega = self._parse_firmata_float(data[2:10])
+            theta = self._parse_firmata_float(data[10:18])
+            zeta = self._parse_firmata_float(data[18:26])
+            if self._imu_callback is not None:
+                self._imu_callback(omega, theta, zeta)
+
+        elif command == LMD_ACCEL_READ_REPLY:
+            # Parse accelerometer response.
+            if len(data) < 26:
+                logger.warning('Received Acceleration response with not enough data!')
+                print(' received the Acceleration response')
+                return
             x = self._parse_firmata_float(data[2:10])
             y = self._parse_firmata_float(data[10:18])
             z = self._parse_firmata_float(data[18:26])
-            if self._imu_callback is not None:
-                self._imu_callback(x, y, z)
+            if self._accel_callback is not None:
+                self._accel_callback(x, y, z)
         else:
             logger.warning('Received unexpected response!')
 
     def read_imu(self, callback):
         """Request an accelerometer reading.  The result will be returned by
         calling the provided callback function and passing it 3 parameters:
+            - Omega angle
+            - theta angle
+            - Zeta angle
+            """
+        self._imu_callback = callback
+        self._command_handler.send_sysex(LMD_COMMAND, [LMD_IMU_READ])
+
+    def read_accel(self, callback):
+        """Request an accelerometer reading.  The result will be returned by
+        calling the provided callback function and passing it 3 parameters:
             - X  angular acceleration
             - Y angular acceleration
             - Z angular acceleration
             """
-        self._imu_callback = callback
-        self._command_handler.send_sysex(LMD_COMMAND, [LMD_IMU_READ])
+        self._accel_callback = callback
+        self._command_handler.send_sysex(LMD_COMMAND, [LMD_ACCEL_READ])

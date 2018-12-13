@@ -81,17 +81,22 @@ Connections
 
 // LMD-specific Firmata SysEx commands:
 #define BNO055_SAMPLERATE_DELAY_MS (100)                              // LMD
+
 #define LMD_COMMAND            0x01  // Byte that identifies all Circuit Playground commands.
 
-#define LMD_IMU_READ           0x10  // Return the current x, y, z IMUerometer values.
-#define LMD_IMU_READ_REPLY     0x11  // Result of an IMUeromete read.  Includes 3 floating point values (4 bytes each) with x, y, z
-                                      // IMUeration in meters/second^2.
+#define LMD_IMU_READ           0x10  // Return the current OMEGA, THETA, ZETA IMU values.
+#define LMD_IMU_READ_REPLY     0x11  // Result of an IMU read. Includes 3 floating point values (4 bytes each) with OMEGA, THETA, ZET
+                                      // IMU in degrees
 #define LMD_IMU_TAP            0x12  // Return the current IMU tap state.
 #define LMD_IMU_TAP_REPLY      0x37  // Result of the tap sensor read.  Includes a byte with the tap register value.
 #define LMD_IMU_TAP_STREAM_ON  0x38  // Turn on continuous streaming of tap data.
 #define LMD_IMU_TAP_STREAM_OFF 0x39  // Turn off streaming of tap data.
-#define LMD_IMU_STREAM_ON      0x3A  // Turn on continuous streaming of IMUerometer data.
-#define LMD_IMU_STREAM_OFF     0x3B  // Turn off streaming of IMUerometer data.
+#define LMD_IMU_STREAM_ON      0x3A  // Turn on continuous streaming of IMU data.
+#define LMD_IMU_STREAM_OFF     0x3B  // Turn off streaming of IMU data.
+
+#define LMD_ACCEL_READ         0X20   //RETURN THE CURRENT LINEAR ACCELERATION VALUES, a_x, a_y, a_z
+#define LMD_ACCEL_READ_REPLY   0X21   // Result of an linear accel read, includes 3 floating points 
+
 //#define LMD_IMU_RANGE          0x3C  // Set the range of the IMUerometer, takes one byte as a parameter.
                                       // Use a value 0=+/-2G, 1=+/-4G, 2=+/-8G, 3=+/-16G
 //#define LMD_IMU_TAP_CONFIG     0x3D  // Set the sensitivity of the tap detection, takes 4 bytes of 7-bit firmata
@@ -113,6 +118,7 @@ Connections
 // LMD globals:
 bool streamTap = false;
 bool streamIMU = false;
+bool streamACCEL = false;
 // Define type for the cap touch sensor state of each cap touch input.
 typedef struct {
   bool streaming;
@@ -552,6 +558,9 @@ void LMD_FirmataCommand(byte command, byte argc, byte* argv) {
     case LMD_IMU_READ:
       sendIMUResponse();
       break;
+    case LMD_ACCEL_READ:
+      sendACCELResponse();
+      break;
     /*  
     case LMD_IMU_TAP:
       sendTapResponse();
@@ -565,9 +574,11 @@ void LMD_FirmataCommand(byte command, byte argc, byte* argv) {
     */  
     case LMD_IMU_STREAM_ON:
       streamIMU = true;
+      streamACCEL = true;
       break;
     case LMD_IMU_STREAM_OFF:
       streamIMU = false;
+      streamACCEL = false;
       break;
     /*  
     case LMD_IMU_RANGE:
@@ -600,15 +611,15 @@ void LMD_FirmataCommand(byte command, byte argc, byte* argv) {
   }
 }
 
-// Read the IMUerometer and send a response packet.
+// Read the IMU and send a response packet.
 void sendIMUResponse() {
-  // Get an IMU X, Y, Z reading.
+  // Get an IMU OMEGA, THETA, ZETA reading.
   sensors_event_t event;
   bno.getEvent(&event);                          //CircuitPlayground.lis.getEvent(&event);
   // Construct a response data packet.
   uint8_t data[13] = {0};
   data[0] = LMD_IMU_READ_REPLY;
-  // Put the three 32-bit float X,Y,Z reading into the packet.
+  // Put the three 32-bit float omega, theta, zeta reading into the packet.
   // Note that Firmata.sendSysex will automatically convert bytes into
   // two 7-bit bytes that are Firmata/MIDI compatible.
   // Use a union to easily grab the bytes of the float.
@@ -622,6 +633,35 @@ void sendIMUResponse() {
   reading.value = event.orientation.y;
   memcpy(data+5, reading.bytes, 4);
   reading.value = event.orientation.z;
+  memcpy(data+9, reading.bytes, 4);
+  // Send the response.
+  Firmata.sendSysex(LMD_COMMAND, 13, data);
+}
+
+// Read the accelerometer and send a response packet.
+void sendACCELResponse() {
+  // Get accelerometer x,y,z reading.
+  sensors_event_t event;
+  bno.getEvent(&event);                          //CircuitPlayground.lis.getEvent(&event);
+  // Construct a response data packet.
+  uint8_t data[13] = {0};
+  data[0] = LMD_ACCEL_READ_REPLY;
+  // Put the three 32-bit float x, y, z accleration reading into the packet.
+  // Note that Firmata.sendSysex will automatically convert bytes into
+  // two 7-bit bytes that are Firmata/MIDI compatible.
+  // Use a union to easily grab the bytes of the float.
+  union {
+    float value;
+    uint8_t bytes[4];
+  } reading;
+  
+  // Grab each X, Y, Z float byte value and copy it into the response. 
+  imu::Vector<3> linearaccel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
+  reading.value = linearaccel.x();
+  memcpy(data+1, reading.bytes, 4);
+  reading.value = linearaccel.y();
+  memcpy(data+5, reading.bytes, 4);
+  reading.value = linearaccel.z();
   memcpy(data+9, reading.bytes, 4);
   // Send the response.
   Firmata.sendSysex(LMD_COMMAND, 13, data);
@@ -942,6 +982,7 @@ void LMD_FirmataReset() {
   // Turn off streaming of tap, IMU, and cap touch data.
   streamTap = false;
   streamIMU = false;
+  streamACCEL = false;
   for (int i=0; i<CAP_COUNT; ++i) {
     cap_state[i].streaming = false;
   }
@@ -1040,6 +1081,7 @@ void loop()
     // Check if an IMU event should be streamed to the firmata client.
     if (streamIMU) {
       sendIMUResponse();
+      sendACCELResponse();
     }
     
   }
