@@ -44,6 +44,7 @@ class LMD_firmata_addons(PyMata):
         byte array.  Each pair of firmata 7-bit response bytes represents a single
         byte of float data so there should be 8 firmata response bytes total.
         """
+
         if len(data) != 8:
             raise ValueError('Expected 8 bytes of firmata response for floating point value!')
         # Convert 2 7-bit bytes in little endian format to 1 8-bit byte for each
@@ -59,6 +60,7 @@ class LMD_firmata_addons(PyMata):
         byte array.  Each pair of firmata 7-bit response bytes represents a single
         byte of long data so there should be 8 firmata response bytes total.
         """
+
         if len(data) != 8:
             raise ValueError('Expected 8 bytes of firmata response for long value!')
         # Convert 2 7-bit bytes in little endian format to 1 8-bit byte for each
@@ -82,7 +84,7 @@ class LMD_firmata_addons(PyMata):
             # Parse IMU response.
             if len(data) < 26:
                 logger.warning('Received IMU response with not enough data!')
-                print(' received the IMU response')
+                print(' received the Orinetation information')
                 return
             omega = self._parse_firmata_float(data[2:10])
             theta = self._parse_firmata_float(data[10:18])
@@ -92,15 +94,17 @@ class LMD_firmata_addons(PyMata):
 
         elif command == LMD_ACCEL_READ_REPLY:
             # Parse accelerometer response.
-            if len(data) < 26:
-                logger.warning('Received Acceleration response with not enough data!')
+            if len(data) < 34:
+                print('Received Acceleration response with not enough data!!')
                 print(' received the Acceleration response')
                 return
+
             x = self._parse_firmata_float(data[2:10])
             y = self._parse_firmata_float(data[10:18])
             z = self._parse_firmata_float(data[18:26])
+            t = (self._parse_firmata_long(data[26:34])) / 1000         # gather time info and translate into seconds
             if self._accel_callback is not None:
-                self._accel_callback(x, y, z)
+                self._accel_callback(x, y, z, t)
         else:
             logger.warning('Received unexpected response!')
 

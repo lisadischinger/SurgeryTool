@@ -119,6 +119,8 @@ Connections
 bool streamTap = false;
 bool streamIMU = false;
 bool streamACCEL = false;
+unsigned long StartTime = millis();             // initial time used for integrating the acceleration values
+
 // Define type for the cap touch sensor state of each cap touch input.
 typedef struct {
   bool streaming;
@@ -640,13 +642,13 @@ void sendIMUResponse() {
 
 // Read the accelerometer and send a response packet.
 void sendACCELResponse() {
-  // Get accelerometer x,y,z reading.
+  // Get accelerometer a_x, a_y, a_z reading.
   sensors_event_t event;
   bno.getEvent(&event);                          //CircuitPlayground.lis.getEvent(&event);
   // Construct a response data packet.
   uint8_t data[13] = {0};
   data[0] = LMD_ACCEL_READ_REPLY;
-  // Put the three 32-bit float x, y, z accleration reading into the packet.
+  // Put the three 32-bit float a_x, a_y, a_z accleration reading into the packet.
   // Note that Firmata.sendSysex will automatically convert bytes into
   // two 7-bit bytes that are Firmata/MIDI compatible.
   // Use a union to easily grab the bytes of the float.
@@ -654,6 +656,9 @@ void sendACCELResponse() {
     float value;
     uint8_t bytes[4];
   } reading;
+  
+  unsigned long Time = millis();
+  unsigned long ElapsedTime = Time - StartTime;             // calculate the time that has elapsed since the startup; be wary if the starttime was near full value 
   
   // Grab each X, Y, Z float byte value and copy it into the response. 
   imu::Vector<3> linearaccel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
@@ -663,8 +668,10 @@ void sendACCELResponse() {
   memcpy(data+5, reading.bytes, 4);
   reading.value = linearaccel.z();
   memcpy(data+9, reading.bytes, 4);
+  reading.value = ElapsedTime;
+  memcpy(data+13, reading.bytes, 4);
   // Send the response.
-  Firmata.sendSysex(LMD_COMMAND, 13, data);
+  Firmata.sendSysex(LMD_COMMAND, 17, data);
 }
 
 /*
@@ -926,6 +933,7 @@ void systemResetCallback()
   // Reset LMD_firmata components to a default state with nothing running.
   // (i.e. no pixels lit, no sound, no data streaming back)
   LMD_FirmataReset();
+
 
   if (isI2CEnabled) {
     disableI2CPins();
