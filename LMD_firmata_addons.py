@@ -18,6 +18,8 @@ LMD_ACCEL_READ              = 0X20                          #RETURN THE CURRENT 
 LMD_ACCEL_READ_REPLY        = 0X21                          #Result of an linear accel read, includes 3 floating points
 
 logger = logging.getLogger(__name__)
+first_accel_read = True
+t_edit = 1                                                  # normalizing factor to correct for the clock silliness
 
 
 class LMD_firmata_addons(PyMata):
@@ -62,7 +64,7 @@ class LMD_firmata_addons(PyMata):
         """
 
         if len(data) != 8:
-            raise ValueError('Expected 8 bytes of firmata response for long value!')
+            raise ValueError('Expected 2 bytes of firmata response for long value!')
         # Convert 2 7-bit bytes in little endian format to 1 8-bit byte for each
         # of the four floating point bytes.
         raw_bytes = bytearray(4)
@@ -74,6 +76,8 @@ class LMD_firmata_addons(PyMata):
     def _response_handler(self, data):
         """Callback invoked when a circuit playground sysex command is received.
         """
+        global first_accel_read, t_edit
+
         logger.debug('LMD response: 0x{0}'.format(hexlify(bytearray(data))))
         if len(data) < 1:
             logger.warning('Received response with no data!')
@@ -96,13 +100,17 @@ class LMD_firmata_addons(PyMata):
             # Parse accelerometer response.
             if len(data) < 34:
                 print('Received Acceleration response with not enough data!!')
-                print(' received the Acceleration response')
+                print('received the Acceleration response')
                 return
 
             x = self._parse_firmata_float(data[2:10])
             y = self._parse_firmata_float(data[10:18])
             z = self._parse_firmata_float(data[18:26])
-            t = (self._parse_firmata_long(data[26:34])) / 1000         # gather time info and translate into seconds
+            t = (self._parse_firmata_long(data[26:34]))/1000          # gather time info and translate from millis to s
+            #if first_accel_read:
+                #t_edit = t-1                                          # we know this first value is supposed to be about 1, i know this is bad but I
+                #first_accel_read = False                                #have no idea how to not have an initial time of 1 million
+            #t = t - t_edit
             if self._accel_callback is not None:
                 self._accel_callback(x, y, z, t)
         else:

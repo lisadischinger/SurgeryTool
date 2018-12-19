@@ -34,6 +34,7 @@ Connections
 #include <Servo.h>
 #include <Wire.h>
 #include <Firmata.h>
+#include <time.h>
 //#include <Adafruit_CircuitPlayground.h>
 #include <Adafruit_Sensor.h>                                        //LMD
 #include <Adafruit_BNO055.h>                                        //LMD
@@ -119,7 +120,8 @@ Connections
 bool streamTap = false;
 bool streamIMU = false;
 bool streamACCEL = false;
-unsigned long StartTime = millis();             // initial time used for integrating the acceleration values
+unsigned long StartTime = 0;             // Just set-up the global variable
+bool firstTime = true;                   // to trigger that you read the starting time only for the first round
 
 // Define type for the cap touch sensor state of each cap touch input.
 typedef struct {
@@ -646,9 +648,9 @@ void sendACCELResponse() {
   sensors_event_t event;
   bno.getEvent(&event);                          //CircuitPlayground.lis.getEvent(&event);
   // Construct a response data packet.
-  uint8_t data[13] = {0};
+  uint8_t data[17] = {0};
   data[0] = LMD_ACCEL_READ_REPLY;
-  // Put the three 32-bit float a_x, a_y, a_z accleration reading into the packet.
+  // Put the four 32-bit float a_x, a_y, a_z accleration reading along with the 16 bit time into the packet.
   // Note that Firmata.sendSysex will automatically convert bytes into
   // two 7-bit bytes that are Firmata/MIDI compatible.
   // Use a union to easily grab the bytes of the float.
@@ -658,9 +660,9 @@ void sendACCELResponse() {
   } reading;
   
   unsigned long Time = millis();
-  unsigned long ElapsedTime = Time - StartTime;             // calculate the time that has elapsed since the startup; be wary if the starttime was near full value 
+  unsigned long ElapsedTime = (Time-StartTime);             // calculate the time that has elapsed since the startup; be wary if the starttime was near full value 
   
-  // Grab each X, Y, Z float byte value and copy it into the response. 
+  // Grab each X, Y, Z and t byte value and copy it into the response. 
   imu::Vector<3> linearaccel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
   reading.value = linearaccel.x();
   memcpy(data+1, reading.bytes, 4);
@@ -1046,8 +1048,8 @@ void setup()
      runDemo();   // this will 'demo' the board off, so you know its working, until the serial port is opened
   }
 #endif
-
-  systemResetCallback();  // reset to default config
+  firstTime = true;                 // set this flag to signify the first round of accel data and to start the timer
+  systemResetCallback();            // reset to default config
 }
 
 /*==============================================================================
@@ -1089,6 +1091,10 @@ void loop()
     // Check if an IMU event should be streamed to the firmata client.
     if (streamIMU) {
       sendIMUResponse();
+      if (firstTime){
+          StartTime = millis();             // initial time used for integrating the acceleration values
+          firstTime = false;
+      }
       sendACCELResponse();
     }
     
