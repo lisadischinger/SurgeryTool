@@ -1,3 +1,5 @@
+
+
 /* MPU9250 Basic Example Code
  by: Kris Winer
  date: April 1, 2014
@@ -27,6 +29,7 @@
 #include "quaternionFilters.h"
 #include "MPU9250.h"
 #include "math.h"
+#include "AdvancedSerial.h"
 
 #define AHRS false         // Set to false for basic data read
 #define SerialDebug true  // Set to true to get Serial output for debugging
@@ -42,16 +45,24 @@
 
 // LMD variables
   int i;                          // counter to modify data arrays
-  float imu_data[1000][7];              // array of the data gathered from the gyroscope and the accelerometer; [t, ax, ay, az, gx, gy, gz]
-  float pos[3];                   // array of x,y,z absolute position
+  float imu_data[11][7];              // array of the data gathered from the gyroscope and the accelerometer; [t, ax, ay, az, gx, gy, gz]
+  float pos[10][4];                   // array of t,x,y,z absolute position
   unsigned int t_0;               // this is the initial time used for integration purposes
   int pos_0;                      // initial position of the imu
-  float imu1_x[2];               // first IMU location data
-  float imu2_x[2];               // second IMU location data
+  float imu1_x[3];               // first IMU location data
+  //float imu2_x[3];               // second IMU location data
   bool StationairyRead = true;     // used to figure out the cutoff range
-  float imu_data_stat[100][7];          // arrays used to collect stationary data to find the range x_accel wanders
+  float imu_data_stat[15][7];          // arrays used to collect stationary data to find the range x_accel wanders
+  float cutOff[6];                    // array that holds the ranges of the stationairy data
     
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
+
+/*
+// For Graphing real time purposes
+// https://github.com/Nick1787/AdvancedSerial/wiki
+//Instantiate a new advanced serial object with 500 transmit slots
+AdvancedSerial AdvSerial(&Serial, 2);
+*/
 
 void setup()
 {
@@ -62,6 +73,11 @@ void setup()
   Wire.write(0);     // set to zero (wakes up the MPU-6050)
   Wire.endTransmission(true);
   Serial.begin(9600);
+  /*
+  //Add globals to the transmit queue.  The 3rd add signal command is ingored since there are only two slots
+  AdvSerial.addSignal("time",&imu_data_stat[0]);
+  AdvSerial.addSignal("stationairy ax",&imu_data_stat[1]);
+  */
 
   while(!Serial){};
 
@@ -126,21 +142,44 @@ void setup()
   while (StationairyRead)                           // used to see the range at which the sensor oscilated while it sits stationairy
   {
     Serial.println("Please wait while initializing the IMUs");
-    for (int i=0; i <= 100; i++)                   // collect 100 stationairy sample points
+    for (int i=0; i <= 20; i++)                   // collect 100 stationairy sample points
     {
-      data_gather(imu_data_stat[i]);                     // feeding it the array that it is to fix up and the counter to modify the array
-    } 
+      data_gather(imu_data_stat[i]);              // feeding it the array that it is to fix up and the counter to modify the array
+      delay(1000);
+    }
+     
+    ////////////
+    Serial.println("imu_data_stat ");           // check what the array looks like
+    for(int i = 0; i < sizeof(imu_data_stat)/sizeof(imu_data_stat[0]); i++)
+    {
+      Serial.print(imu_data_stat[i][0]); Serial.print(imu_data_stat[i][1]); Serial.print(imu_data_stat[i][2]); Serial.println(imu_data_stat[i][3]);
+    }
+    ///////////
+    
+    StationairyRead = false;                      // we no longer need to read to figure out how oscilates
+    cut_off(cutOff);                // calculate the range at which the sensor wobbles while sitting still
   }
+  Serial.println(" now you may move the IMU");
+  
   i = 0;                                          // re-set the counter back to zero so that it can be used to modify the imu_data array  
+  Serial.begin(115200);                           // this eff3ctivly pauses the serial communication
+
+    /*
+    //Transmit the Data
+    AdvSerial.exec();
+    */
 }
 
 void loop()
 {
-  
   data_gather(imu_data[i]);                            // gather new data from the specified imu
-  delay(1000);
-  //pos_calc( t_0, pos_0, imu_data, pos);             // calculate the position of the specified imu
-  
+  delay(100);
+
+  if (i>=2)
+  {
+    pos_calc( t_0, pos_0, imu_data[i], imu_data[i-1], pos[i]);             // calculate the position of the specified imu
+  }
+  i++;
 }
 
 ///////////////////////////////////////////
@@ -229,20 +268,14 @@ void data_gather(float out_array[]) {
 
         /*
         // Print mag values in degree/sec
-        Serial.print("X-mag field: "); Serial.print(myIMU.mx);
-        Serial.print(" mG ");
-        Serial.print("Y-mag field: "); Serial.print(myIMU.my);
-        Serial.print(" mG ");
-        Serial.print("Z-mag field: "); Serial.print(myIMU.mz);
-        Serial.println(" mG");
+        Serial.print("mag (x,y,z): "); Serial.print(1000*myIMU.mx); Serial.print("  "); Serial.print(1000*myIMU.my);Serial.print("  ");Serial.print(1000*myIMU.mz)
+        Serial.println(" mG ");
         */
-
       }
 
       myIMU.count = millis();
-      digitalWrite(myLed, !digitalRead(myLed));  // toggle led
-    } // if (myIMU.delt_t > 500)
-  } // if (!AHRS)
+    }
+  }
   else
   {
     // Serial print and/or display at 0.5 s rate independent of data rates
@@ -253,25 +286,17 @@ void data_gather(float out_array[]) {
     {
       if(SerialDebug)
       {
-        Serial.print("ax = ");  Serial.print((int)1000 * myIMU.ax);
-        Serial.print("ay = "); Serial.print((int)1000 * myIMU.ay);
-        Serial.print("az = "); Serial.print((int)1000 * myIMU.az);
-        Serial.println(" mg");
+        Serial.print("acc (x, y, z) = ");  Serial.print((int)1000 * myIMU.ax); Serial.print("  "); Serial.print((int)1000 * myIMU.ay);Serial.print("  "); 
+        Serial.print((int)1000 * myIMU.az); Serial.println(" mg");
 
-        Serial.print("gx = ");  Serial.print(myIMU.gx, 2);
-        Serial.print("gy = "); Serial.print(myIMU.gy, 2);
-        Serial.print("gz = "); Serial.print(myIMU.gz, 2);
-        Serial.println(" deg/s");
+        Serial.print("gyro (x, y, z) = ");  Serial.print(myIMU.gx,2); Serial.print("  "); Serial.print(myIMU.gy);Serial.print("  "); 
+        Serial.print(myIMU.gz); Serial.println(" rad/s");
 
-        Serial.print("mx = ");  Serial.print((int)myIMU.mx);
-        Serial.print(" my = "); Serial.print((int)myIMU.my);
-        Serial.print(" mz = "); Serial.print((int)myIMU.mz);
-        Serial.println(" mG");
+        Serial.print("mag (x, y, z) = ");  Serial.print(myIMU.mx); Serial.print("  "); Serial.print(myIMU.my);Serial.print("  "); 
+        Serial.print(myIMU.mz); Serial.println(" mg");
 
-        Serial.print("q0 = ");  Serial.print(*getQ());
-        Serial.print(" qx = "); Serial.print(*(getQ() + 1));
-        Serial.print(" qy = "); Serial.print(*(getQ() + 2));
-        Serial.print(" qz = "); Serial.println(*(getQ() + 3));
+        Serial.print("(q0, qx, qy, qz) = ");  Serial.print(*getQ()); Serial.print("  "); Serial.print(*(getQ() + 1)); Serial.print("  "); 
+        Serial.print(*(getQ() + 2)); Serial.print("  "); Serial.println(*(getQ() + 3));
       }
 
 // Define output variables from updated quaternion---these are Tait-Bryan angles, commonly used in aircraft orientation. In this coordinate system,
@@ -303,16 +328,10 @@ void data_gather(float out_array[]) {
 
       if(SerialDebug)
       {
-        Serial.print("Yaw, Pitch, Roll: ");
-        Serial.print(myIMU.yaw, 2);
-        Serial.print(", ");
-        Serial.print(myIMU.pitch, 2);
-        Serial.print(", ");
+        Serial.print("Yaw, Pitch, Roll: "); Serial.print(myIMU.yaw, 2); Serial.print(", "); Serial.print(myIMU.pitch, 2); Serial.print(", ");
         Serial.println(myIMU.roll, 2);
 
-        Serial.print("rate = ");
-        Serial.print((float)myIMU.sumCount / myIMU.sum, 2);
-        Serial.println(" Hz");
+        Serial.print("rate = "); Serial.print((float)myIMU.sumCount / myIMU.sum, 2); Serial.println(" Hz");
       }
 
       myIMU.count = millis();
@@ -324,11 +343,63 @@ void data_gather(float out_array[]) {
 }
 
 
-void pos_calc(unsigned int t_0, int pos_0, float data[], float out_array[]){
+void cut_off(float out_array[]){
+  // this function finds the ranges to cut off for the high pass filter
+  // based off of the stationairy data. currently we will juts be finding the max and min and 
+  //stating that that is the cuttoff range
+
+  float ax_array[sizeof(imu_data_stat)], ay_array[sizeof(imu_data_stat)], az_array[sizeof(imu_data_stat)],
+        gx_array[sizeof(imu_data_stat)], gy_array[sizeof(imu_data_stat)], gz_array[sizeof(imu_data_stat)];
+  
+  for (int i = 0; i<= sizeof(imu_data_stat)/sizeof(imu_data_stat[0]); i++)            // first issolate the different data sets
+  {
+    ax_array[i] = imu_data_stat[i][1];
+    ay_array[i] = imu_data_stat[i][2];
+    az_array[i] = imu_data_stat[i][3];
+    gx_array[i] = imu_data_stat[i][4];
+    gy_array[i] = imu_data_stat[i][5];
+    gz_array[i] = imu_data_stat[i][6];
+  }
+
+  out_array[0] = {array_max(ax_array),array_min(ax_array)};
+  out_array[1] = {array_max(ay_array),array_min(ay_array)};
+  out_array[2] = {array_max(az_array),array_min(az_array)};
+  out_array[3] = {array_max(gx_array),array_min(gx_array)};
+  out_array[4] = {array_max(gy_array),array_min(gy_array)};
+  out_array[5] = {array_max(gz_array),array_min(gz_array)};
+  return;
+}
+
+
+float array_max(float array[]){
+  // find the maximum value in an array
+  
+  int max_v = 0;                          // placeholder for max value
+  for (int i=0; i< sizeof(array); i++)
+  {
+    max_v = max(array[i], max_v);
+  }
+  return max_v;
+}
+
+
+float array_min(float array[]){
+  // find the minimum value in an array
+  
+  int min_v = 0;                          // placeholder for max value
+  for (int i=0; i< sizeof(array); i++)
+  {
+    min_v = min(array[i], min_v);
+  }
+  return min_v;
+}
+
+
+void pos_calc(unsigned int t_0, int pos_0, float data_now[], float data_past[], float out_array[]){
   //This function is used to find the relative position based off of the acclerometer
   // and gyroscope data
    float result;
-   Serial.println(" I made it to the calc function!");
+   //Serial.println(" I made it to the calc function!");
   return;
 }
 

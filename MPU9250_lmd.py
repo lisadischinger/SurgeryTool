@@ -4,7 +4,8 @@ import numpy as np
 from LMD_firmata_addons import LMD_firmata_addons
 from PyMata.pymata import PyMata
 import time
-import sys
+import s
+
 
 print("hello")
 board = LMD_firmata_addons('COM3')

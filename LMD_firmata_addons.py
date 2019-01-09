@@ -1,7 +1,7 @@
 
 import atexit
-from binascii import hexlify
-import logging
+from binascii import hexlify # unable to yet install for python3
+import logging          # unable to install for python3
 import math
 import struct
 
