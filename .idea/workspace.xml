@@ -2,11 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f15421a3-0b4c-44a9-b952-f39c814ec575" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/SurgeryTool.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/SurgeryTool.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Arduino Code/LMD_StandardFirmata_MPU/LMD_StandardFirmata_MPU.ino" beforeDir="false" afterPath="$PROJECT_DIR$/Arduino Code/LMD_StandardFirmata_MPU/LMD_StandardFirmata_MPU.ino" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Arduino Code/MPU9250BasicAHRS_I2C/MPU9250BasicAHRS_I2C.ino" beforeDir="false" afterPath="$PROJECT_DIR$/Arduino Code/MPU9250BasicAHRS_I2C/MPU9250BasicAHRS_I2C.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LMD_firmata_addons.py" beforeDir="false" afterPath="$PROJECT_DIR$/LMD_firmata_addons.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LMD_firmata_addon_MPU.py" beforeDir="false" afterPath="$PROJECT_DIR$/LMD_firmata_addon_MPU.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MPU9250_lmd.py" beforeDir="false" afterPath="$PROJECT_DIR$/MPU9250_lmd.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -20,33 +19,27 @@
     <SUITE FILE_PATH="coverage/SurgeryTool$BNO055_lmd.coverage" NAME="BNO055_lmd Coverage Results" MODIFIED="1545184202129" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="FileEditorManager">
-    <leaf>
-      <file pinned="false" current-in-tab="false">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/LMD_firmata_addon_MPU.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1488">
-              <caret line="26" column="29" selection-start-line="26" selection-start-column="29" selection-end-line="26" selection-end-column="29" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/IMU_mapper.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="68">
-              <caret line="4" column="11" selection-start-line="4" selection-start-column="11" selection-end-line="4" selection-end-column="11" />
+            <state relative-caret-position="-196">
+              <caret line="86" column="51" lean-forward="true" selection-start-line="86" selection-start-column="51" selection-end-line="86" selection-end-column="51" />
               <folding>
-                <element signature="e#0#15#0" expanded="true" />
+                <element signature="e#941#1336#0" />
+                <element signature="e#1387#1627#0" />
+                <element signature="e#1679#2410#0" />
+                <element signature="e#2452#3232#0" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/LMD_firmata_addons.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="136">
-              <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
+            <state relative-caret-position="34">
+              <caret line="8" selection-start-line="8" selection-end-line="8" />
               <folding>
                 <element signature="e#1#14#0" expanded="true" />
               </folding>
@@ -57,20 +50,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/MPU9250_lmd.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="51">
-              <caret line="8" selection-start-line="8" selection-end-line="8" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/BNO055_lmd.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="952">
-              <caret line="56" column="107" selection-start-line="56" selection-start-column="107" selection-end-line="56" selection-end-column="107" />
-              <folding>
-                <element signature="e#31#49#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="578">
+              <caret line="42" selection-start-line="42" selection-end-line="42" />
             </state>
           </provider>
         </entry>
@@ -101,16 +82,20 @@
         <option value="C:/Python27/Lib/site-packages/PyMata/pymata.py" />
         <option value="$PROJECT_DIR$/IMU_mapper.py" />
         <option value="$PROJECT_DIR$/BNO055_lmd.py" />
-        <option value="$PROJECT_DIR$/MPU9250_lmd.py" />
         <option value="$PROJECT_DIR$/LMD_firmata_addons.py" />
+        <option value="$PROJECT_DIR$/../ME599/HW0_Lisa Dischinger/hello.py" />
+        <option value="$PROJECT_DIR$/../ME599/HW0_Lisa Dischinger/cylinder.py" />
+        <option value="$PROJECT_DIR$/../ME599/HW0_Lisa Dischinger/torus.py" />
+        <option value="$PROJECT_DIR$/MPU9250_lmd.py" />
+        <option value="$PROJECT_DIR$/LMD_firmata_addon_MPU.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="7">
-    <option name="x" value="-12" />
-    <option name="y" value="-12" />
-    <option name="width" value="1944" />
-    <option name="height" value="1044" />
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="-11" />
+    <option name="y" value="-11" />
+    <option name="width" value="1943" />
+    <option name="height" value="1043" />
   </component>
   <component name="ProjectView">
     <navigator currentView="Scope" currentSubView="Scope 'Project Files'; set:Project Files; class com.intellij.psi.search.scope.ProjectFilesScope" proportions="" version="1">
@@ -133,7 +118,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../ME599/HW0_Lisa Dischinger/torus.py" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
@@ -224,18 +209,19 @@
       <workItem from="1546744593212" duration="742000" />
       <workItem from="1546821057961" duration="624000" />
       <workItem from="1546978612024" duration="666000" />
-      <workItem from="1547012405397" duration="1754000" />
+      <workItem from="1547012405397" duration="3263000" />
+      <workItem from="1547249419485" duration="1343000" />
+      <workItem from="1547257669929" duration="908000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="56892000" />
+    <option name="totallyTimeSpent" value="60652000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-7" y="-7" width="1295" height="695" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.28502023" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.07206478" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -257,29 +243,6 @@
       <window_info anchor="right" id="SciView" order="3" />
       <window_info anchor="right" id="Database" order="4" />
     </layout>
-    <layout-to-restore>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.16923077" />
-      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" side_tool="true" />
-      <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.37655416" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" />
-      <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
-      <window_info anchor="bottom" id="Version Control" order="8" />
-      <window_info anchor="bottom" id="Database Changes" order="9" />
-      <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
-      <window_info anchor="bottom" id="Terminal" order="11" />
-      <window_info anchor="bottom" id="Python Console" order="12" />
-      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
-      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
-      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-      <window_info anchor="right" id="SciView" order="3" />
-      <window_info anchor="right" id="Database" order="4" />
-    </layout-to-restore>
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
@@ -340,10 +303,24 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/LMD_firmata_addon_MPU.py">
+    <entry file="file://$PROJECT_DIR$/../ME599/HW0_Lisa Dischinger/hello.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1488">
-          <caret line="26" column="29" selection-start-line="26" selection-start-column="29" selection-end-line="26" selection-end-column="29" />
+        <state relative-caret-position="136">
+          <caret line="9" lean-forward="true" selection-start-line="9" selection-end-line="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../ME599/HW0_Lisa Dischinger/cylinder.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="153">
+          <caret line="9" column="25" lean-forward="true" selection-start-line="9" selection-start-column="25" selection-end-line="9" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../ME599/HW0_Lisa Dischinger/torus.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="85">
+          <caret line="5" column="11" lean-forward="true" selection-start-line="5" selection-start-column="11" selection-end-line="5" selection-end-column="11" />
         </state>
       </provider>
     </entry>
@@ -357,19 +334,32 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/MPU9250_lmd.py">
+    <entry file="file://$PROJECT_DIR$/LMD_firmata_addons.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
+        <state relative-caret-position="34">
           <caret line="8" selection-start-line="8" selection-end-line="8" />
+          <folding>
+            <element signature="e#1#14#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/LMD_firmata_addons.py">
+    <entry file="file://$PROJECT_DIR$/MPU9250_lmd.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="136">
-          <caret line="8" lean-forward="true" selection-start-line="8" selection-end-line="8" />
+        <state relative-caret-position="578">
+          <caret line="42" selection-start-line="42" selection-end-line="42" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/LMD_firmata_addon_MPU.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-196">
+          <caret line="86" column="51" lean-forward="true" selection-start-line="86" selection-start-column="51" selection-end-line="86" selection-end-column="51" />
           <folding>
-            <element signature="e#1#14#0" expanded="true" />
+            <element signature="e#941#1336#0" />
+            <element signature="e#1387#1627#0" />
+            <element signature="e#1679#2410#0" />
+            <element signature="e#2452#3232#0" />
           </folding>
         </state>
       </provider>

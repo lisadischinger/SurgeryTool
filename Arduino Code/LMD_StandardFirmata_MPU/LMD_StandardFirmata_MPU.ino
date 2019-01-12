@@ -1,24 +1,17 @@
 /*
-  Firmata Firmware based off of circuit playground Firmata
-  Special version of the Firmata firmware for Adafruit's Circuit Playground
-  physical computing board.  Based on the StandardFirmata firmware but
-  with extensions for the components and sensors on the Circuit Playground
-  board (NeoPixels, LIS3DH IMUerometer, etc).
-  Firmata is a generic protocol for communicating with microcontrollers
-  from software on a host computer. It is intended to work with
-  any host computer software package.
-  To download a host software package, please clink on the following link
-  to open the list of Firmata client libraries your default browser.
+  Firmata Firmware based off of circuit playground Firmata Special version of the Firmata firmware for Adafruit's Circuit Playground
+  physical computing board.  Based on the StandardFirmata firmware but with extensions for the components and sensors on the Circuit Playground
+  board (NeoPixels, LIS3DH IMUerometer, etc). Firmata is a generic protocol for communicating with microcontrollers
+  from software on a host computer. It is intended to work with any host computer software package.
+  To download a host software package, please clink on the following link to open the list of Firmata client libraries your default browser.
   https://github.com/firmata/arduino#firmata-client-libraries
   Copyright (C) 2006-2008 Hans-Christoph Steiner.  All rights reserved.
   Copyright (C) 2010-2011 Paul Stoffregen.  All rights reserved.
   Copyright (C) 2009 Shigeru Kobayashi.  All rights reserved.
   Copyright (C) 2009-2015 Jeff Hoefs.  All rights reserved.
   Copyright (C) 2016 Tony DiCola.  All rights reservered.
-  This library is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
+  This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public
+  License as published by the Free Software Foundation; either version 2.1 of the License, or (at your option) any later version.
   See file LICENSE.txt for further informations on licensing terms.
 
 Connections
@@ -36,8 +29,9 @@ Connections
 #include <Firmata.h>
 #include <Adafruit_Sensor.h>                                        //LMD
 #include <MPU9250.h>
+//#include <imumaths.h>                                               //LMD
 #include <quaternionFilters.h>
-#include <utility/imumaths.h>                                       //LMD
+
 
 // Uncomment below to enable debug output.
 //#define DEBUG_MODE
@@ -58,7 +52,10 @@ Connections
   #define DEBUG_PRINTLN(...) {}
 #endif
 
-
+#define I2Cclock 400000                                     // LMD added from MPU9250BasicAHRS
+#define I2Cport Wire                                        // LMD added from MPU9250BasicAHRS
+#define MPU9250_ADDRESS MPU9250_ADDRESS_AD0                 // Use either this line or the next to select which I2C address your device is using
+  //#define MPU9250_ADDRESS MPU9250_ADDRESS_AD1
 #define I2C_WRITE                   B00000000
 #define I2C_READ                    B00001000
 #define I2C_READ_CONTINUOUSLY       B00010000
@@ -67,6 +64,9 @@ Connections
 #define I2C_10BIT_ADDRESS_MODE_MASK B00100000
 #define I2C_MAX_QUERIES             8
 #define I2C_REGISTER_NOT_SPECIFIED  -1
+
+// Pin definitions
+  int intPin = 2;                                           // These can be changed, 2 and 3 are the Arduinos ext int pins
 
 // Circuit playground configuration:
 #define PIXEL_COUNT    10     // Number of NeoPixels on the board.
@@ -80,18 +80,15 @@ Connections
 #define CAP_SAMPLES    30     // Number of samples to take for a cap touch input.
 
 // LMD-specific Firmata SysEx commands:
-#define MPU_SAMPLERATE_DELAY_MS (100)                              // LMD I just kept the same value used for the BNO
+#define MPU_SAMPLERATE_DELAY_MS (100)                              // LMD I just kept the same value used for the myIMU
 
 #define LMD_COMMAND            0x01  // Byte that identifies all Circuit Playground commands.
 
-#define LMD_IMU_1_READ           0x10  // Return the current OMEGA, THETA, ZETA IMU values.
-#define LMD_IMU_2_READ           0x11  // Return the current OMEGA, THETA, ZETA of the second IMU Values.
+#define LMD_IMU_1_READ         0x10  // Return the current OMEGA, THETA, ZETA IMU values.
+#define LMD_IMU_2_READ         0x11  // Return the current OMEGA, THETA, ZETA of the second IMU Values.
 #define LMD_IMU_READ_REPLY     0x12  // Result of an IMU read. Includes 3 floating point values (4 bytes each) with OMEGA, THETA, ZET
                                       // IMU in degrees
 #define LMD_IMU_TAP            0x13  // Return the current IMU tap state.
-
-#define LMD_Start_Time         0x20   // read the initial time
-#define LMD_Read_Time          0x21   // Read the current Time
 
 #define LMD_IMU_TAP_REPLY      0x37  // Result of the tap sensor read.  Includes a byte with the tap register value.
 #define LMD_IMU_TAP_STREAM_ON  0x38  // Turn on continuous streaming of tap data.
@@ -118,9 +115,8 @@ Connections
  *============================================================================*/
 
 // LMD globals:
-bool streamTap = false;
-bool streamIMU = false;
-bool firstTime = true;                   // to trigger that you read the starting time only for the first round
+bool streamTap = false; bool streamIMU = false; bool firstTime = true;                   // to trigger that you read the starting time only for the first round
+unsigned int t_0;                                                                       // initial time for set_up
 
 // Define type for the cap touch sensor state of each cap touch input.
 typedef struct {
@@ -198,11 +194,11 @@ signed char queryIndex = -1;
 // default delay time between i2c read request and Wire.requestFrom()
 unsigned int i2cReadDelayTime = 0;
 
+/*
 Servo servos[MAX_SERVOS];
-byte servoPinMap[TOTAL_PINS];
-byte detachedServos[MAX_SERVOS];
-byte detachedServoCount = 0;
-byte servoCount = 0;
+byte servoPinMap[TOTAL_PINS]; byte detachedServos[MAX_SERVOS];
+byte detachedServoCount = 0; byte servoCount = 0;
+*/
 
 boolean isResetting = false;
 
@@ -225,30 +221,42 @@ byte wireRead(void)
 #endif
 }
 
+MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);                          // LMD
+
 /* Set thge delay between fresh samples */
-Adafruit_BNO055 mpu = MPU9250(55);                                          // LMD inserted from BNO sensorapi example code
+//Adafruit_myIMU055 mpu = MPU9250(55);                                          // LMD inserted from BNO sensorapi example code
 
 /*==============================================================================
  * FUNCTIONS
  *============================================================================*/
 
+/*
 void attachServo(byte pin, int minPulse, int maxPulse)
 {
-  if (servoCount < MAX_SERVOS) {
-    // reuse indexes of detached servos until all have been reallocated
-    if (detachedServoCount > 0) {
+  if (servoCount < MAX_SERVOS)                        // reuse indexes of detached servos until all have been reallocated
+  {
+    
+    if (detachedServoCount > 0)
+    {
       servoPinMap[pin] = detachedServos[detachedServoCount - 1];
       if (detachedServoCount > 0) detachedServoCount--;
-    } else {
+    } 
+    else
+    {
       servoPinMap[pin] = servoCount;
       servoCount++;
     }
-    if (minPulse > 0 && maxPulse > 0) {
+    if (minPulse > 0 && maxPulse > 0)
+    {
       servos[servoPinMap[pin]].attach(PIN_TO_DIGITAL(pin), minPulse, maxPulse);
-    } else {
+    } 
+    else
+    {
       servos[servoPinMap[pin]].attach(PIN_TO_DIGITAL(pin));
     }
-  } else {
+  } 
+  else
+  {
     Firmata.sendString("Max servos attached");
   }
 }
@@ -256,50 +264,58 @@ void attachServo(byte pin, int minPulse, int maxPulse)
 void detachServo(byte pin)
 {
   servos[servoPinMap[pin]].detach();
-  // if we're detaching the last servo, decrement the count
-  // otherwise store the index of the detached servo
-  if (servoPinMap[pin] == servoCount && servoCount > 0) {
+  // if we're detaching the last servo, decrement the count otherwise store the index of the detached servo
+  if (servoPinMap[pin] == servoCount && servoCount > 0)
+  {
     servoCount--;
-  } else if (servoCount > 0) {
-    // keep track of detached servos because we want to reuse their indexes
-    // before incrementing the count of attached servos
+  } 
+  else if (servoCount > 0)
+  {
+    // keep track of detached servos because we want to reuse their indexes before incrementing the count of attached servos
     detachedServoCount++;
     detachedServos[detachedServoCount - 1] = servoPinMap[pin];
   }
 
   servoPinMap[pin] = 255;
 }
+*/
 
-void readAndReportData(byte address, int theRegister, byte numBytes) {
-  // allow I2C requests that don't require a register read
-  // for example, some devices using an interrupt pin to signify new data available
+void readAndReportData(byte address, int theRegister, byte numBytes)
+{
+  // allow I2C requests that don't require a register read for example, some devices using an interrupt pin to signify new data available
   // do not always require the register read so upon interrupt you call Wire.requestFrom()
-  if (theRegister != I2C_REGISTER_NOT_SPECIFIED) {
+  if (theRegister != I2C_REGISTER_NOT_SPECIFIED)
+  {
     Wire.beginTransmission(address);
     wireWrite((byte)theRegister);
     Wire.endTransmission();
-    // do not set a value of 0
-    if (i2cReadDelayTime > 0) {
+    if (i2cReadDelayTime > 0)         // do not set a value of 0
+    {
       // delay is necessary for some devices such as WiiNunchuck
       delayMicroseconds(i2cReadDelayTime);
     }
-  } else {
+  } 
+  else
+  {
     theRegister = 0;  // fill the register with a dummy value
   }
 
   Wire.requestFrom(address, numBytes);  // all bytes are returned in requestFrom
 
   // check to be sure correct number of bytes were returned by slave
-  if (numBytes < Wire.available()) {
+  if (numBytes < Wire.available())
+  {
     Firmata.sendString("I2C: Too many bytes received");
-  } else if (numBytes > Wire.available()) {
+  } 
+  else if (numBytes > Wire.available())
+  {
     Firmata.sendString("I2C: Too few bytes received");
   }
 
-  i2cRxData[0] = address;
-  i2cRxData[1] = theRegister;
+  i2cRxData[0] = address; i2cRxData[1] = theRegister;
 
-  for (int i = 0; i < numBytes && Wire.available(); i++) {
+  for (int i = 0; i < numBytes && Wire.available(); i++)
+  {
     i2cRxData[2 + i] = wireRead();
   }
 
@@ -307,12 +323,12 @@ void readAndReportData(byte address, int theRegister, byte numBytes) {
   Firmata.sendSysex(SYSEX_I2C_REPLY, numBytes + 2, i2cRxData);
 }
 
-void outputPort(byte portNumber, byte portValue, byte forceSend)
+void outputPort(byte portNumber, byte portValue, byte forceSend)    // pins not configured as INPUT are cleared to zeros
 {
-  // pins not configured as INPUT are cleared to zeros
   portValue = portValue & portConfigInputs[portNumber];
-  // only send if the value is different than previously sent
-  if (forceSend || previousPINs[portNumber] != portValue) {
+
+  if (forceSend || previousPINs[portNumber] != portValue)     // only send if the value is different than previously sent
+  {
     Firmata.sendDigitalPort(portNumber, portValue);
     previousPINs[portNumber] = portValue;
   }
@@ -323,8 +339,7 @@ void outputPort(byte portNumber, byte portValue, byte forceSend)
  * to the Serial output queue using Serial.print() */
 void checkDigitalInputs(void)
 {
-  /* Using non-looping code allows constants to be given to readPort().
-   * The compiler will apply substantial optimizations if the inputs
+  /* Using non-looping code allows constants to be given to readPort(). The compiler will apply substantial optimizations if the inputs
    * to readPort() are compile-time constants. */
   if (TOTAL_PORTS > 0 && reportPINs[0]) outputPort(0, readPort(0, portConfigInputs[0]), false);
   if (TOTAL_PORTS > 1 && reportPINs[1]) outputPort(1, readPort(1, portConfigInputs[1]), false);
@@ -353,34 +368,45 @@ void setPinModeCallback(byte pin, int mode)
   if (pinConfig[pin] == PIN_MODE_IGNORE)
     return;
 
-  if (pinConfig[pin] == PIN_MODE_I2C && isI2CEnabled && mode != PIN_MODE_I2C) {
-    // disable i2c so pins can be used for other functions
-    // the following if statements should reconfigure the pins properly
+  if (pinConfig[pin] == PIN_MODE_I2C && isI2CEnabled && mode != PIN_MODE_I2C)
+  {
+    // disable i2c so pins can be used for other functions the following if statements should reconfigure the pins properly
     disableI2CPins();
   }
-  if (IS_PIN_DIGITAL(pin) && mode != PIN_MODE_SERVO) {
-    if (servoPinMap[pin] < MAX_SERVOS && servos[servoPinMap[pin]].attached()) {
+  /*
+  if (IS_PIN_DIGITAL(pin) && mode != PIN_MODE_SERVO)
+  {
+    if (servoPinMap[pin] < MAX_SERVOS && servos[servoPinMap[pin]].attached())
+    {
       detachServo(pin);
     }
   }
-  if (IS_PIN_ANALOG(pin)) {
+  */
+  if (IS_PIN_ANALOG(pin))
+  {
     reportAnalogCallback(PIN_TO_ANALOG(pin), mode == PIN_MODE_ANALOG ? 1 : 0); // turn on/off reporting
   }
-  if (IS_PIN_DIGITAL(pin)) {
-    if (mode == INPUT || mode == PIN_MODE_PULLUP) {
+  if (IS_PIN_DIGITAL(pin))
+  {
+    if (mode == INPUT || mode == PIN_MODE_PULLUP)
+    {
       portConfigInputs[pin / 8] |= (1 << (pin & 7));
-    } else {
+    } 
+    else
+    {
       portConfigInputs[pin / 8] &= ~(1 << (pin & 7));
     }
   }
   pinState[pin] = 0;
-  switch (mode) {
+  switch (mode)
+  {
     case PIN_MODE_ANALOG:
-      if (IS_PIN_ANALOG(pin)) {
-        if (IS_PIN_DIGITAL(pin)) {
+      if (IS_PIN_ANALOG(pin))
+      {
+        if (IS_PIN_DIGITAL(pin))
+        {
           pinMode(PIN_TO_DIGITAL(pin), INPUT);    // disable output driver
-#if ARDUINO <= 100
-          // deprecated since Arduino 1.0.1 - TODO: drop support in Firmata 2.6
+#if ARDUINO <= 100                                // deprecated since Arduino 1.0.1 - TODO: drop support in Firmata 2.6
           digitalWrite(PIN_TO_DIGITAL(pin), LOW); // disable internal pull-ups
 #endif
         }
@@ -398,59 +424,64 @@ void setPinModeCallback(byte pin, int mode)
       }
       break;
     case PIN_MODE_PULLUP:
-      if (IS_PIN_DIGITAL(pin)) {
+      if (IS_PIN_DIGITAL(pin))
+      {
         pinMode(PIN_TO_DIGITAL(pin), INPUT_PULLUP);
         pinConfig[pin] = PIN_MODE_PULLUP;
         pinState[pin] = 1;
       }
       break;
     case OUTPUT:
-      if (IS_PIN_DIGITAL(pin)) {
+      if (IS_PIN_DIGITAL(pin))
+      {
         digitalWrite(PIN_TO_DIGITAL(pin), LOW); // disable PWM
         pinMode(PIN_TO_DIGITAL(pin), OUTPUT);
         pinConfig[pin] = OUTPUT;
       }
       break;
     case PIN_MODE_PWM:
-      if (IS_PIN_PWM(pin)) {
+      if (IS_PIN_PWM(pin))
+      {
         pinMode(PIN_TO_PWM(pin), OUTPUT);
         analogWrite(PIN_TO_PWM(pin), 0);
         pinConfig[pin] = PIN_MODE_PWM;
       }
       break;
+    /*  
     case PIN_MODE_SERVO:
-      if (IS_PIN_DIGITAL(pin)) {
+      if (IS_PIN_DIGITAL(pin))
+      {
         pinConfig[pin] = PIN_MODE_SERVO;
-        if (servoPinMap[pin] == 255 || !servos[servoPinMap[pin]].attached()) {
-          // pass -1 for min and max pulse values to use default values set
-          // by Servo library
+        if (servoPinMap[pin] == 255 || !servos[servoPinMap[pin]].attached())
+        {
+          // pass -1 for min and max pulse values to use default values set by Servo library
           attachServo(pin, -1, -1);
         }
       }
       break;
+    */
     case PIN_MODE_I2C:
-      if (IS_PIN_I2C(pin)) {
-        // mark the pin as i2c
-        // the user must call I2C_CONFIG to enable I2C for a device
+      if (IS_PIN_I2C(pin))
+      {
+        // mark the pin as i2c; the user must call I2C_CONFIG to enable I2C for a device
         pinConfig[pin] = PIN_MODE_I2C;
       }
       break;
     default:
       Firmata.sendString("Unknown pin mode"); // TODO: put error msgs in EEPROM
   }
-  // TODO: save status to EEPROM here, if changed
 }
 
 /*
- * Sets the value of an individual pin. Useful if you want to set a pin value but
- * are not tracking the digital port state.
- * Can only be used on pins configured as OUTPUT.
- * Cannot be used to enable pull-ups on Digital INPUT pins.
+ * Sets the value of an individual pin. Useful if you want to set a pin value but are not tracking the digital port state.
+ * Can only be used on pins configured as OUTPUT. Cannot be used to enable pull-ups on Digital INPUT pins.
  */
 void setPinValueCallback(byte pin, int value)
 {
-  if (pin < TOTAL_PINS && IS_PIN_DIGITAL(pin)) {
-    if (pinConfig[pin] == OUTPUT) {
+  if (pin < TOTAL_PINS && IS_PIN_DIGITAL(pin))
+  {
+    if (pinConfig[pin] == OUTPUT)
+    {
       pinState[pin] = value;
       digitalWrite(PIN_TO_DIGITAL(pin), value);
     }
@@ -459,13 +490,17 @@ void setPinValueCallback(byte pin, int value)
 
 void analogWriteCallback(byte pin, int value)
 {
-  if (pin < TOTAL_PINS) {
-    switch (pinConfig[pin]) {
+  if (pin < TOTAL_PINS)
+  {
+    switch (pinConfig[pin])
+    {
+      /*
       case PIN_MODE_SERVO:
         if (IS_PIN_DIGITAL(pin))
           servos[servoPinMap[pin]].write(value);
         pinState[pin] = value;
         break;
+      */
       case PIN_MODE_PWM:
         if (IS_PIN_PWM(pin))
           analogWrite(PIN_TO_PWM(pin), value);
@@ -479,24 +514,28 @@ void digitalWriteCallback(byte port, int value)
 {
   byte pin, lastPin, pinValue, mask = 1, pinWriteMask = 0;
 
-  if (port < TOTAL_PORTS) {
-    // create a mask of the pins on this port that are writable.
+  if (port < TOTAL_PORTS)                                   // create a mask of the pins on this port that are writable.
+  {
     lastPin = port * 8 + 8;
     if (lastPin > TOTAL_PINS) lastPin = TOTAL_PINS;
-    for (pin = port * 8; pin < lastPin; pin++) {
-      // do not disturb non-digital pins (eg, Rx & Tx)
-      if (IS_PIN_DIGITAL(pin)) {
+    for (pin = port * 8; pin < lastPin; pin++)                            // do not disturb non-digital pins (eg, Rx & Tx)
+    {
+      if (IS_PIN_DIGITAL(pin))
+      {
         // do not touch pins in PWM, ANALOG, SERVO or other modes
-        if (pinConfig[pin] == OUTPUT || pinConfig[pin] == INPUT) {
+        if (pinConfig[pin] == OUTPUT || pinConfig[pin] == INPUT)
+        {
           pinValue = ((byte)value & mask) ? 1 : 0;
-          if (pinConfig[pin] == OUTPUT) {
+          if (pinConfig[pin] == OUTPUT)
+          {
             pinWriteMask |= mask;
-          } else if (pinConfig[pin] == INPUT && pinValue == 1 && pinState[pin] != 1) {
-            // only handle INPUT here for backwards compatibility
+          } 
+          else if (pinConfig[pin] == INPUT && pinValue == 1 && pinState[pin] != 1)
+          {
+                      // only handle INPUT here for backwards compatibility
 #if ARDUINO > 100
             pinMode(pin, INPUT_PULLUP);
-#else
-            // only write to the INPUT pin to enable pullups if Arduino v1.0.0 or earlier
+#else                                         // only write to the INPUT pin to enable pullups if Arduino v1.0.0 or earlier
             pinWriteMask |= mask;
 #endif
           }
@@ -509,25 +548,21 @@ void digitalWriteCallback(byte port, int value)
   }
 }
 
-
-// -----------------------------------------------------------------------------
-/* sets bits in a bit array (int) to toggle the reporting of the analogIns
- */
-//void FirmataClass::setAnalogPinReporting(byte pin, byte state) {
-//}
 void reportAnalogCallback(byte analogPin, int value)
 {
-  if (analogPin < TOTAL_ANALOG_PINS) {
-    if (value == 0) {
+  if (analogPin < TOTAL_ANALOG_PINS)
+  {
+    if (value == 0)
+    {
       analogInputsToReport = analogInputsToReport & ~ (1 << analogPin);
-    } else {
+    } 
+    else
+    {
       analogInputsToReport = analogInputsToReport | (1 << analogPin);
-      // prevent during system reset or all analog pin values will be reported
-      // which may report noise for unconnected analog pins
-      if (!isResetting) {
-        // Send pin value immediately. This is helpful when connected via
-        // ethernet, wi-fi or bluetooth so pin states can be known upon
-        // reconnecting.
+      // prevent during system reset or all analog pin values will be reported which may report noise for unconnected analog pins
+      if (!isResetting)
+      {
+        // Send pin value immediately. This is helpful when connected via ethernet, wi-fi or bluetooth so pin states can be known upon reconnecting.
         Firmata.sendAnalog(analogPin, analogRead(analogPin));
       }
     }
@@ -537,19 +572,15 @@ void reportAnalogCallback(byte analogPin, int value)
 
 void reportDigitalCallback(byte port, int value)
 {
-  if (port < TOTAL_PORTS) {
+  if (port < TOTAL_PORTS)
+  {
     reportPINs[port] = (byte)value;
-    // Send port value immediately. This is helpful when connected via
-    // ethernet, wi-fi or bluetooth so pin states can be known upon
-    // reconnecting.
+    // Send port value immediately. This is helpful when connected via ethernet, wi-fi or bluetooth so pin states can be known upon reconnecting.
     if (value) outputPort(port, readPort(port, portConfigInputs[port]), true);
   }
-  // do not disable analog reporting on these 8 pins, to allow some
-  // pins used for digital, others analog.  Instead, allow both types
-  // of reporting to be enabled, but check if the pin is configured
-  // as analog when sampling the analog inputs.  Likewise, while
-  // scanning digital pins, portConfigInputs will mask off values from any
-  // pins configured as analog
+  // do not disable analog reporting on these 8 pins, to allow some pins used for digital, others analog.  Instead, allow both types
+  // of reporting to be enabled, but check if the pin is configured as analog when sampling the analog inputs.  Likewise, while
+  // scanning digital pins, portConfigInputs will mask off values from any pins configured as analog
 }
 
 
@@ -559,74 +590,32 @@ void reportDigitalCallback(byte port, int value)
 
 void LMD_FirmataCommand(byte command, byte argc, byte* argv) {
   switch (command) {
-    case LMD_IMU_READ:
+    case LMD_IMU_1_READ:
       sendIMUResponse();
       break;
-    case LMD_ACCEL_READ:
-      sendACCELResponse();
+    case LMD_IMU_2_READ:
+      sendIMUResponse();
       break;
-    /*  
-    case LMD_IMU_TAP:
-      sendTapResponse();
-      break;
-    case LMD_IMU_TAP_STREAM_ON:
-      streamTap = true;
-      break;
-    case LMD_IMU_TAP_STREAM_OFF:
-      streamTap = false;
-      break;
-    */  
     case LMD_IMU_STREAM_ON:
       streamIMU = true;
-      streamACCEL = true;
       break;
     case LMD_IMU_STREAM_OFF:
       streamIMU = false;
-      streamACCEL = false;
       break;
-    /*  
-    case LMD_IMU_RANGE:
-      // Set the range of the IMUerometer based on the passed in value.
-      // First check we have enough parameters and grab the input from the first byte.
-      if (argc >= 1) {
-        uint8_t range = argv[0] & 0x7F;
-        // Check the range is an allowed value (0, 1, 2, 3).
-        if (range > 3) {
-          // Unknown range value, stop processing!
-          return;
-        }
-        // Set the range of the IMUerometer.
-        CircuitPlayground.lis.setRange((lis3dh_range_t)range);                        //dont know how to set the range yet, nor do we need to
-      }
-      break;
-      
-    case LMD_IMU_TAP_CONFIG:
-      // Set the sensitivity of tap detection.
-      // Expects 4 7-bit firmata bytes as input, which expand to 2 bytes of 8-bit unsigned data.
-      // First check we have enough parameters.
-      if (argc >= 4) {
-        // Parse out paramemters.
-        uint8_t type = ((argv[1] & 0x01) << 7) | (argv[0] & 0x7F);
-        uint8_t threshold = ((argv[3] & 0x01) << 7) | (argv[2] & 0x7F);
-        // Set the click threshold values.
-        CircuitPlayground.lis.setClick(type, threshold);
-      }
-      */
   }
 }
 
+/*
 // Read the IMU and send a response packet.
 void sendIMUResponse() {
   // Get an IMU OMEGA, THETA, ZETA reading.
   sensors_event_t event;
-  bno.getEvent(&event);                          //CircuitPlayground.lis.getEvent(&event);
+  myIMU.getEvent(&event);                          //CircuitPlayground.lis.getEvent(&event);
   // Construct a response data packet.
   uint8_t data[13] = {0};
   data[0] = LMD_IMU_READ_REPLY;
-  // Put the three 32-bit float omega, theta, zeta reading into the packet.
-  // Note that Firmata.sendSysex will automatically convert bytes into
-  // two 7-bit bytes that are Firmata/MIDI compatible.
-  // Use a union to easily grab the bytes of the float.
+  // Put the three 32-bit float omega, theta, zeta reading into the packet. Note that Firmata.sendSysex will automatically convert bytes into
+  // two 7-bit bytes that are Firmata/MIDI compatible. Use a union to easily grab the bytes of the float.
   union {
     float value;
     uint8_t bytes[4];
@@ -641,54 +630,65 @@ void sendIMUResponse() {
   // Send the response.
   Firmata.sendSysex(LMD_COMMAND, 13, data);
 }
+*/
 
-// Read the accelerometer and send a response packet.
-void sendACCELResponse() {
-  // Get accelerometer a_x, a_y, a_z reading.
-  sensors_event_t event;
-  bno.getEvent(&event);                          //CircuitPlayground.lis.getEvent(&event);
+// Read the IMU and send a response packet. This will gather accel, gyro and mag data. right now it is just for the accel though
+void sendIMUResponse()
+{
+  float g_to_ins2 = 386.05;                                    // 386.05[in/s^2]/ 1g
+  unsigned int t_now = millis();
+  float t = (float)(t_now - t_0)/(float)1000;                           //elapsed time at which we are reading, convert to seconds
+
+  // Now we'll calculate the accleration value into actual g's. This depends on scale being set
+  myIMU.readAccelData(myIMU.accelCount);                               // Read the x/y/z acc values
+  myIMU.ax = (((float)myIMU.accelCount[0] * myIMU.aRes) - myIMU.accelBias[0]) * g_to_ins2;               // unit conversion from [g] to [in/s^2]
+  myIMU.ay = (((float)myIMU.accelCount[1] * myIMU.aRes) - myIMU.accelBias[1]) * g_to_ins2;
+  myIMU.az = (((float)myIMU.accelCount[2] * myIMU.aRes) - myIMU.accelBias[2]) * g_to_ins2;
+
+  // Calculate the gyro value into actual radians per second. This depends on scale being set
+  myIMU.readGyroData(myIMU.gyroCount);
+  myIMU.gx = (float)myIMU.gyroCount[0] * myIMU.gRes * DEG_TO_RAD;           // LMD added the pi/180 to convert from deg/s to rad/s
+  myIMU.gy = (float)myIMU.gyroCount[1] * myIMU.gRes * DEG_TO_RAD;
+  myIMU.gz = (float)myIMU.gyroCount[2] * myIMU.gRes * DEG_TO_RAD;
+
+  // Calculate the magnetometer values in milliGauss Include factory calibration per data sheet and user environmental
+  // corrections Get actual magnetometer value, this depends on scale being set
+  myIMU.readMagData(myIMU.magCount);
+  myIMU.mx = (float)myIMU.magCount[0] * myIMU.mRes
+             * myIMU.factoryMagCalibration[0] - myIMU.magBias[0];
+  myIMU.my = (float)myIMU.magCount[1] * myIMU.mRes
+             * myIMU.factoryMagCalibration[1] - myIMU.magBias[1];
+  myIMU.mz = (float)myIMU.magCount[2] * myIMU.mRes
+             * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
+
+  // Sensors x (y)-axis of the accelerometer is aligned with the y (x)-axis of the magnetometer; the magnetometer z-axis (+ down) is opposite to z-axis
+  // (+ up) of accelerometer and gyro! We have to make some allowance for this orientationmismatch in feeding the output to the quaternion filter. For the
+  // MPU-9250, we have chosen a magnetic rotation that keeps the sensor forward along the x-axis just like in the LSM9DS0 sensor. This rotation can be
+  // modified to allow any convenient orientation convention. This is ok by aircraft orientation standards! Pass gyro rate as rad/s
+
+  MahonyQuaternionUpdate(myIMU.ax, myIMU.ay, myIMU.az,
+                         myIMU.gx, myIMU.gy, myIMU.gz,
+                         myIMU.my, myIMU.mx, myIMU.mz,
+                         t);                             
+
   // Construct a response data packet.
-  uint8_t data[17] = {0};
-  data[0] = LMD_ACCEL_READ_REPLY;
+  uint8_t data[9] = {0};                                              // 1 byte for command, 2 each for t, a_x, a_y, and a_z
+  data[0] = LMD_IMU_READ_REPLY;
   // Put the four 32-bit float a_x, a_y, a_z accleration reading along with the 16 bit time into the packet.
-  // Note that Firmata.sendSysex will automatically convert bytes into
-  // two 7-bit bytes that are Firmata/MIDI compatible.
-  // Use a union to easily grab the bytes of the float.
+  // Note that Firmata.sendSysex will automatically convert bytes into two 7-bit bytes that are Firmata/MIDI compatible. Use a union to easily grab the bytes of the float.
   union {
     float value;
     uint8_t bytes[4];
   } reading;
-  
-  unsigned long Time = millis();
-  unsigned long ElapsedTime = (Time-StartTime);             // calculate the time that has elapsed since the startup; be wary if the starttime was near full value 
-  
-  // Grab each X, Y, Z and t byte value and copy it into the response. 
-  imu::Vector<3> linearaccel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);
-  reading.value = linearaccel.x();
-  memcpy(data+1, reading.bytes, 4);
-  reading.value = linearaccel.y();
-  memcpy(data+5, reading.bytes, 4);
-  reading.value = linearaccel.z();
-  memcpy(data+9, reading.bytes, 4);
-  reading.value = ElapsedTime;
-  memcpy(data+13, reading.bytes, 4);
-  // Send the response.
-  Firmata.sendSysex(LMD_COMMAND, 17, data);
-}
 
-/*
-// Read the IMU tap detection and send a response packet.
-void sendTapResponse() {
-  // Get the IMU tap detection state.
-  bno.getClick();                                                           //uint8_t click = CircuitPlayground.lis.getClick();
-  // Construct a response data packet and send it.
-  uint8_t data[2] = {0};
-  data[0] = LMD_IMU_TAP_REPLY;
-  data[1] = click;
+  // Put all data into one variable to be sent to functions
+      data[0]= t; 
+      data[1]= myIMU.ax; data[2]= myIMU.ay; data[3]= myIMU.az;
+      data[4]= myIMU.gx; data[5]= myIMU.gy; data[6]= myIMU.gz;
+      data[7]= myIMU.mx; data[8]= myIMU.my; data[9]= myIMU.mz;
   // Send the response.
-  Firmata.sendSysex(LMD_COMMAND, 2, data);
+  Firmata.sendSysex(LMD_COMMAND, 9, data);
 }
-*/
 
 /*==============================================================================
  * SYSEX-BASED commands
@@ -805,6 +805,7 @@ void sysexCallback(byte command, byte argc, byte *argv)
       }
 
       break;
+    /*
     case SERVO_CONFIG:
       if (argc > 4) {
         // these vars are here for clarity, they'll optimized away by the compiler
@@ -821,6 +822,7 @@ void sysexCallback(byte command, byte argc, byte *argv)
         }
       }
       break;
+    */
     case SAMPLING_INTERVAL:
       if (argc > 1) {
         samplingInterval = argv[0] + (argv[1] << 7);
@@ -859,10 +861,12 @@ void sysexCallback(byte command, byte argc, byte *argv)
           Firmata.write(PIN_MODE_PWM);
           Firmata.write(8); // 8 = 8-bit resolution
         }
+        /*
         if (IS_PIN_DIGITAL(pin)) {
           Firmata.write(PIN_MODE_SERVO);
           Firmata.write(14);
         }
+        */
         if (IS_PIN_I2C(pin)) {
           Firmata.write(PIN_MODE_I2C);
           Firmata.write(1);  // TODO: could assign a number to map to SCL or SDA
@@ -932,39 +936,39 @@ void systemResetCallback()
   // initialize a defalt state
   // TODO: option to load config from EEPROM instead of default
 
-  // Reset LMD_firmata components to a default state with nothing running.
-  // (i.e. no pixels lit, no sound, no data streaming back)
+  // Reset LMD_firmata components to a default state with nothing running. (i.e. no pixels lit, no sound, no data streaming back)
   LMD_FirmataReset();
 
-
-  if (isI2CEnabled) {
+  if (isI2CEnabled)
+  {
     disableI2CPins();
   }
 
-  for (byte i = 0; i < TOTAL_PORTS; i++) {
+  for (byte i = 0; i < TOTAL_PORTS; i++)
+  {
     reportPINs[i] = false;    // by default, reporting off
     portConfigInputs[i] = 0;  // until activated
     previousPINs[i] = 0;
   }
 
-  for (byte i = 0; i < TOTAL_PINS; i++) {
-    // pins with analog capability default to analog input
-    // otherwise, pins default to digital output
-    if (IS_PIN_ANALOG(i)) {
-      // turns off pullup, configures everything
+  for (byte i = 0; i < TOTAL_PINS; i++)
+  {
+    // pins with analog capability default to analog input otherwise, pins default to digital output
+    if (IS_PIN_ANALOG(i))                                                                 // turns off pullup, configures everything
+    {
       setPinModeCallback(i, PIN_MODE_ANALOG);
-    } else if (IS_PIN_DIGITAL(i)) {
-      // sets the output to 0, configures portConfigInputs
+    } 
+    else if (IS_PIN_DIGITAL(i))                                                           // sets the output to 0, configures portConfigInputs
+    {
       setPinModeCallback(i, OUTPUT);
     }
 
-    servoPinMap[i] = 255;
+    //servoPinMap[i] = 255;
   }
   // by default, do not report any analog inputs
   analogInputsToReport = 0;
 
-  detachedServoCount = 0;
-  servoCount = 0;
+  //detachedServoCount = 0; servoCount = 0;
 
   /* send digital inputs to set the initial state on the host computer,
    * since once in the loop(), this firmware will only send on change */
@@ -979,24 +983,23 @@ void systemResetCallback()
 }
 
 void LMD_FirmataReset() {
-  // Reset the circuit playground components into a default state
-  // with none of the pixels lit, no tones playing, and no cap touch
+  // Reset the circuit playground components into a default state with none of the pixels lit, no tones playing, and no cap touch
   // or IMU data streaming back.
 
+  /*
   // Reset the IMUerometer to a default range.
-  //CircuitPlayground.lis.setRange(LIS3DH_RANGE_2_G);
-  //delay(100);
-  //CircuitPlayground.lis.setClick(2, 80);
-  //delay(100);
+  CircuitPlayground.lis.setRange(LIS3DH_RANGE_2_G);
+  delay(100);
+  CircuitPlayground.lis.setClick(2, 80);
+  delay(100);
+  */
 
   // Turn off streaming of tap, IMU, and cap touch data.
   streamTap = false;
   streamIMU = false;
-  streamACCEL = false;
   for (int i=0; i<CAP_COUNT; ++i) {
     cap_state[i].streaming = false;
   }
-
 }
 
 void setup()
@@ -1008,8 +1011,8 @@ void setup()
   #endif
 
   // Circuit playground setup:
-  if (!bno.begin()) {                                                                //if (!CircuitPlayground.begin()) {
-    // Failed to initialize BNO, fast blink the red LED on the board.
+  if (!myIMU.begin()) {                                                                //if (!CircuitPlayground.begin()) {
+    // Failed to initialize myIMU, fast blink the red LED on the board.
     DEBUG_PRINTLN("Failed to initialize the IMU sensor!");
     pinMode(13, OUTPUT);
     while (1) {
@@ -1059,25 +1062,27 @@ void loop()
 {
   byte pin, analogPin;
 
-  /* DIGITALREAD - as fast as possible, check for changes and output them to the
-   * FTDI buffer using Serial.print()  */
+  // DIGITALREAD - as fast as possible, check for changes and output them to the FTDI buffer using Serial.print()
   checkDigitalInputs();
 
-  /* STREAMREAD - processing incoming messagse as soon as possible, while still
-   * checking digital inputs.  */
+  // STREAMREAD - processing incoming messagse as soon as possible, while still checking digital inputs. 
   while (Firmata.available())
     Firmata.processInput();
 
   // TODO - ensure that Stream buffer doesn't go over 60 bytes
 
   currentMillis = millis();
-  if (currentMillis - previousMillis > samplingInterval) {
+  if (currentMillis - previousMillis > samplingInterval)
+  {
     previousMillis += samplingInterval;
     /* ANALOGREAD - do all analogReads() at the configured sampling interval */
-    for (pin = 0; pin < TOTAL_PINS; pin++) {
-      if (IS_PIN_ANALOG(pin) && pinConfig[pin] == PIN_MODE_ANALOG) {
+    for (pin = 0; pin < TOTAL_PINS; pin++)
+    {
+      if (IS_PIN_ANALOG(pin) && pinConfig[pin] == PIN_MODE_ANALOG)
+      {
         analogPin = PIN_TO_ANALOG(pin);
-        if (analogInputsToReport & (1 << analogPin)) {
+        if (analogInputsToReport & (1 << analogPin))
+        {
           Firmata.sendAnalog(analogPin, analogRead(analogPin));
         }
       }
@@ -1089,13 +1094,14 @@ void loop()
       }
     }
     // Check if an IMU event should be streamed to the firmata client.
-    if (streamIMU) {
+    if (streamIMU)
+    {
       sendIMUResponse();
-      if (firstTime){
-          StartTime = millis();             // initial time used for integrating the acceleration values
+      if (firstTime)
+      {
+          t_0 = millis();             // initial time used for integrating the acceleration values
           firstTime = false;
       }
-      sendACCELResponse();
     }
     
   }

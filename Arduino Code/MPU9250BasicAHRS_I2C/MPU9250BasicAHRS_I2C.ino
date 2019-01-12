@@ -1,5 +1,3 @@
-
-
 /* MPU9250 Basic Example Code
  by: Kris Winer
  date: April 1, 2014
@@ -31,8 +29,8 @@
 #include "math.h"
 #include "AdvancedSerial.h"
 
-#define AHRS false         // Set to false for basic data read
-#define SerialDebug true  // Set to true to get Serial output for debugging
+#define AHRS true         // Set to false for basic data read
+#define SerialDebug false  // Set to true to get Serial output for debugging
 
 #define I2Cclock 400000
 #define I2Cport Wire
@@ -40,20 +38,22 @@
   //#define MPU9250_ADDRESS MPU9250_ADDRESS_AD1
 
 // Pin definitions
-  int intPin = 2; //12;  // These can be changed, 2 and 3 are the Arduinos ext int pins
-  int myLed  = 13;  // Set up pin 13 led for toggling
+  int intPin = 2;                           // These can be changed, 2 and 3 are the Arduinos ext int pins
 
 // LMD variables
-  int i;                          // counter to modify data arrays
-  float imu_data[11][7];              // array of the data gathered from the gyroscope and the accelerometer; [t, ax, ay, az, gx, gy, gz]
-  float pos[10][4];                   // array of t,x,y,z absolute position
-  unsigned int t_0;               // this is the initial time used for integration purposes
-  int pos_0;                      // initial position of the imu
-  float imu1_x[3];               // first IMU location data
-  //float imu2_x[3];               // second IMU location data
-  bool StationairyRead = true;     // used to figure out the cutoff range
-  float imu_data_stat[15][7];          // arrays used to collect stationary data to find the range x_accel wanders
-  float cutOff[6];                    // array that holds the ranges of the stationairy data
+  int i;                                // counter to modify data arrays
+  int array_size = 15;                    // the number of rows in the data matrix
+  float imu_data[15][4];  //[7];         // array of the data gathered from the gyroscope and the accelerometer; [t, ax, ay, az]  gx, gy, gz]
+  float vel[15][4];                      // array of [t, vx, vy, vz] absolute velocity
+  float pos[15][4];                     // array of [t, x, y, z] absolute position
+  unsigned int t_0;                     // this is the initial time used for integration purposes
+  //int pos_0[3] = {0, 0, 0};             // initial position and velocity of the imu
+  float imu1_x[3];                      // first IMU location data
+  //float imu2_x[3];                    // second IMU location data
+  bool StationairyRead = false;         // used to figure out the cutoff range; initially set to false just to test out the code given
+  //float imu_data_stat[15][7];         // arrays used to collect stationary data to find the range x_accel wanders
+  float cutOff[6];                      // array that holds the ranges of the stationairy data
+  float t;                              //  current time
     
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 
@@ -64,15 +64,18 @@ MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 AdvancedSerial AdvSerial(&Serial, 2);
 */
 
+
+
 void setup()
 {
   Wire.begin();
+  Serial.begin(9600);
   // TWBR = 12;  // 400 kbit/sec I2C speed
   Wire.beginTransmission(MPU9250_ADDRESS);
   Wire.write(0x6B);  // PWR_MGMT_1 register
   Wire.write(0);     // set to zero (wakes up the MPU-6050)
   Wire.endTransmission(true);
-  Serial.begin(9600);
+ 
   /*
   //Add globals to the transmit queue.  The 3rd add signal command is ingored since there are only two slots
   AdvSerial.addSignal("time",&imu_data_stat[0]);
@@ -84,8 +87,6 @@ void setup()
   // Set up the interrupt pin, its set as active high, push-pull
   pinMode(intPin, INPUT);
   digitalWrite(intPin, LOW);
-  pinMode(myLed, OUTPUT);
-  digitalWrite(myLed, HIGH);
   byte c = myIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
 
   if (c == 0x71) // WHO_AM_I should always be 0x71
@@ -96,8 +97,7 @@ void setup()
     myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);
 
     myIMU.initMPU9250();
-    // Initialize device for active mode read of acclerometer, gyroscope, and
-    // temperature
+    // Initialize device for active mode read of acclerometer, gyroscope, and temperature
     Serial.println("MPU9250 initialized for active data mode....");
     byte d = myIMU.readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);
 
@@ -115,17 +115,14 @@ void setup()
     //Serial.println("AK8963 initialized for active data mode....");
 
     // Get sensor resolutions, only need to do this once
-    myIMU.getAres();
-    myIMU.getGres();
-    myIMU.getMres();
+    myIMU.getAres(); myIMU.getGres(); myIMU.getMres();
 
     //DebugTest(WHO_AM_I_MPU9250, myIMU.selfTest, d, myIMU.factoryMagCalibration, myIMU.magBias, myIMU.magScale)
 
   } // if (c == 0x71)
   else
   {
-    Serial.print("Could not connect to MPU9250: 0x");
-    Serial.println(c, HEX);
+    Serial.print("Could not connect to MPU9250: 0x"); Serial.println(c, HEX);
 
     // Communication failed, stop here
     Serial.println(F("Communication failed, abort!"));
@@ -139,6 +136,7 @@ void setup()
   
   t_0 = millis();                                   // This captures the initial time in milliseconds
 
+  /*
   while (StationairyRead)                           // used to see the range at which the sensor oscilated while it sits stationairy
   {
     Serial.println("Please wait while initializing the IMUs");
@@ -157,30 +155,37 @@ void setup()
     ///////////
     
     StationairyRead = false;                      // we no longer need to read to figure out how oscilates
-    cut_off(cutOff);                // calculate the range at which the sensor wobbles while sitting still
+    //cut_off(cutOff);                // calculate the range at which the sensor wobbles while sitting still
   }
-  Serial.println(" now you may move the IMU");
+  */
   
-  i = 0;                                          // re-set the counter back to zero so that it can be used to modify the imu_data array  
-  Serial.begin(115200);                           // this eff3ctivly pauses the serial communication
-
-    /*
-    //Transmit the Data
-    AdvSerial.exec();
-    */
+  Serial.println(" now you may move the IMU");
 }
 
 void loop()
 {
-  data_gather(imu_data[i]);                            // gather new data from the specified imu
-  delay(100);
-
-  if (i>=2)
+  for(int a = 0; a < array_size; a++)
   {
-    pos_calc( t_0, pos_0, imu_data[i], imu_data[i-1], pos[i]);             // calculate the position of the specified imu
+    data_gather(imu_data[a]);     // gather new data from the specified imu
+    delay(100);
+    if(a>= 1);
+    {
+      integrate( t_0, vel[a-1], imu_data[a], imu_data[a-1], vel[a]);              // calculate the velocity of the specified imu
+      integrate( t_0, pos[a-1], vel[a], vel[a-1], pos[a]);                        //calculate the location of the sensor relative to the starting point
+    }
   }
-  i++;
+  
+  Serial.println("Accleration data [in/s^2]");
+  print_array(imu_data, array_size, 4);
+  Serial.println(" ");
+  Serial.println("calculated velocity data [in/s]");
+  print_array(vel, array_size, 4);
+  Serial.println(" ");
+  Serial.println("Position data [in]");
+  print_array(pos, array_size, 4);
+  Serial.println(" ");
 }
+
 
 ///////////////////////////////////////////
 // Lisa's Functions
@@ -191,17 +196,20 @@ void data_gather(float out_array[]) {
   // it will return "data" which is the array of the float values gathered.
   // If intPin goes high, all data registers have new data
   // On interrupt, check if data ready interrupt
-  
+
+  unsigned t_now;
+  float g_to_ins2 = 386.05;                                    // 386.05[in/s^2]/ 1g
   if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
   {
     myIMU.readAccelData(myIMU.accelCount);  // Read the x/y/z adc values
-    unsigned int t = millis() - t_0;                           //time at which we are reading
+    t_now = millis();
+    t = (float)(t_now - t_0)/(float)1000;                           //time at which we are reading, convert to seconds
 
     // Now we'll calculate the accleration value into actual g's
     // This depends on scale being set
-    myIMU.ax = (float)myIMU.accelCount[0] * myIMU.aRes; // - myIMU.accelBias[0];
-    myIMU.ay = (float)myIMU.accelCount[1] * myIMU.aRes; // - myIMU.accelBias[1];
-    myIMU.az = (float)myIMU.accelCount[2] * myIMU.aRes; // - myIMU.accelBias[2];
+    myIMU.ax = (((float)myIMU.accelCount[0] * myIMU.aRes) - myIMU.accelBias[0]) * g_to_ins2 ; //unit conversion from [g] to [in/s^2]
+    myIMU.ay = ((float)myIMU.accelCount[1] * myIMU.aRes) * g_to_ins2; // - myIMU.accelBias[1];
+    myIMU.az = ((float)myIMU.accelCount[2] * myIMU.aRes) * g_to_ins2; // - myIMU.accelBias[2];
 
     myIMU.readGyroData(myIMU.gyroCount);  // Read the x/y/z adc values
 
@@ -224,29 +232,16 @@ void data_gather(float out_array[]) {
     myIMU.mz = (float)myIMU.magCount[2] * myIMU.mRes
                * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
 
-    // Put all data into one variable to be sent to functions
-    out_array[0]= t;
-    out_array[1]= myIMU.ax;
-    out_array[2]= myIMU.ay;
-    out_array[3]= myIMU.az;
-    out_array[4]= myIMU.gx;
-    out_array[5]= myIMU.gy;
-    out_array[6]= myIMU.gx;
-
-    
   } // if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
 
   // Must be called before updating quaternions!
   myIMU.updateTime();
 
-  // Sensors x (y)-axis of the accelerometer is aligned with the y (x)-axis of
-  // the magnetometer; the magnetometer z-axis (+ down) is opposite to z-axis
-  // (+ up) of accelerometer and gyro! We have to make some allowance for this
-  // orientationmismatch in feeding the output to the quaternion filter. For the
-  // MPU-9250, we have chosen a magnetic rotation that keeps the sensor forward
-  // along the x-axis just like in the LSM9DS0 sensor. This rotation can be
-  // modified to allow any convenient orientation convention. This is ok by
-  // aircraft orientation standards! Pass gyro rate as rad/s
+  // Sensors x (y)-axis of the accelerometer is aligned with the y (x)-axis of the magnetometer; the magnetometer z-axis (+ down) is opposite to z-axis
+  // (+ up) of accelerometer and gyro! We have to make some allowance for this orientationmismatch in feeding the output to the quaternion filter. For the
+  // MPU-9250, we have chosen a magnetic rotation that keeps the sensor forward along the x-axis just like in the LSM9DS0 sensor. This rotation can be
+  // modified to allow any convenient orientation convention. This is ok by aircraft orientation standards! Pass gyro rate as rad/s
+
   MahonyQuaternionUpdate(myIMU.ax, myIMU.ay, myIMU.az, myIMU.gx * DEG_TO_RAD,
                          myIMU.gy * DEG_TO_RAD, myIMU.gz * DEG_TO_RAD, myIMU.my,
                          myIMU.mx, myIMU.mz, myIMU.deltat);
@@ -259,11 +254,11 @@ void data_gather(float out_array[]) {
       if(SerialDebug)
       {
         // Print acceleration values in milligs!
-        Serial.print("acc (x, y, z): "); Serial.print(1000 * myIMU.ax); Serial.print("  "); Serial.print(1000 * myIMU.ay); Serial.print("  "); Serial.print(1000 * myIMU.az);
-        Serial.println(" mg ");
+        Serial.print("acc (x, y, z): "); Serial.print(myIMU.ax); Serial.print("  "); Serial.print(myIMU.ay); Serial.print("  "); Serial.print(myIMU.az);
+        Serial.println(" in/s^2 ");
 
         // Print gyro values in degree/sec
-        Serial.print("gyr (x, y, z): "); Serial.print(myIMU.gx, 3);Serial.print("  "); Serial.print(myIMU.gy, 3);Serial.print("  "); Serial.print(myIMU.gz, 3);
+        Serial.print("gyro (x, y, z): "); Serial.print(myIMU.gx, 3);Serial.print("  "); Serial.print(myIMU.gy, 3);Serial.print("  "); Serial.print(myIMU.gz, 3);
         Serial.println(" rad/sec ");
 
         /*
@@ -271,6 +266,11 @@ void data_gather(float out_array[]) {
         Serial.print("mag (x,y,z): "); Serial.print(1000*myIMU.mx); Serial.print("  "); Serial.print(1000*myIMU.my);Serial.print("  ");Serial.print(1000*myIMU.mz)
         Serial.println(" mG ");
         */
+
+        // Put all data into one variable to be sent to functions
+        out_array[0]= t;
+        out_array[1]= myIMU.ax; out_array[2]= myIMU.ay; out_array[3]= myIMU.az; 
+        //out_array[4]= myIMU.gx; out_array[5]= myIMU.gy; out_array[6]= myIMU.gx;
       }
 
       myIMU.count = millis();
@@ -282,18 +282,20 @@ void data_gather(float out_array[]) {
     myIMU.delt_t = millis() - myIMU.count;
 
     // update LCD once per half-second independent of read rate
-    if (myIMU.delt_t > 500)
-    {
+    //if (myIMU.delt_t > 500)
+
       if(SerialDebug)
       {
-        Serial.print("acc (x, y, z) = ");  Serial.print((int)1000 * myIMU.ax); Serial.print("  "); Serial.print((int)1000 * myIMU.ay);Serial.print("  "); 
-        Serial.print((int)1000 * myIMU.az); Serial.println(" mg");
+        Serial.print("acc (x, y, z) = ");  Serial.print(myIMU.ax); Serial.print("  "); Serial.print(myIMU.ay);Serial.print("  "); 
+        Serial.print(myIMU.az); Serial.println(" g");
 
         Serial.print("gyro (x, y, z) = ");  Serial.print(myIMU.gx,2); Serial.print("  "); Serial.print(myIMU.gy);Serial.print("  "); 
         Serial.print(myIMU.gz); Serial.println(" rad/s");
 
+        /*
         Serial.print("mag (x, y, z) = ");  Serial.print(myIMU.mx); Serial.print("  "); Serial.print(myIMU.my);Serial.print("  "); 
         Serial.print(myIMU.mz); Serial.println(" mg");
+        */
 
         Serial.print("(q0, qx, qy, qz) = ");  Serial.print(*getQ()); Serial.print("  "); Serial.print(*(getQ() + 1)); Serial.print("  "); 
         Serial.print(*(getQ() + 2)); Serial.print("  "); Serial.println(*(getQ() + 3));
@@ -320,8 +322,7 @@ void data_gather(float out_array[]) {
       myIMU.pitch *= RAD_TO_DEG;
       myIMU.yaw   *= RAD_TO_DEG;
 
-      // Declination of SparkFun Electronics (40°05'26.6"N 105°11'05.9"W) is
-      //   8° 30' E  ± 0° 21' (or 8.5°) on 2016-07-19
+      // Declination of SparkFun Electronics (40°05'26.6"N 105°11'05.9"W) is 8° 30' E  ± 0° 21' (or 8.5°) on 2016-07-19
       // - http://www.ngdc.noaa.gov/geomag-web/#declination
       myIMU.yaw  -= 8.5;
       myIMU.roll *= RAD_TO_DEG;
@@ -337,12 +338,52 @@ void data_gather(float out_array[]) {
       myIMU.count = millis();
       myIMU.sumCount = 0;
       myIMU.sum = 0;
-    } // if (myIMU.delt_t > 500)
-  } // if (AHRS)
+
+      // Put all data into one variable to be sent to functions
+      out_array[0]= t; 
+      out_array[1]= myIMU.ax; out_array[2]= myIMU.ay; out_array[3]= myIMU.az;
+      //out_array[4]= myIMU.yaw; out_array[5]= myIMU.pitch; out_array[6]= myIMU.roll;
+  }
   return;
 }
 
+void print_array(float arrayx[][4], int rowSize, int columnSize)
+{
+  // this function will print out all the values within the array
 
+  for(int i = 0; i < rowSize; i++)                // incrament for the different rows
+  {
+    for(int j = 0; j < columnSize-1; j++)         // incrament for the different columns
+    {
+      Serial.print(arrayx[i][j]);Serial.print(" ");
+    }
+    int j = columnSize - 1;
+    Serial.println(arrayx[i][j]);                // the last value of the row should start a new line
+  }
+  return;
+}
+
+void integrate(unsigned int t_0, float vect_past[], float data_now[], float data_past[], float out_array[])
+{
+  // This function is used to iterate the information given; if acceleration is given then this caluates the new velocity,
+  // if velocities are given then this calculates the new position
+  float d_vect_rel[3];
+  float dx[3] = {data_now[1] - data_past[1], data_now[2] - data_past[2], data_now[3] - data_past[3]};     // this calculates the differences in linear accleration of the two times
+  float dt = data_now[0] - data_past[0];                                                    // calculate the time between samples [econds]
+  
+  for (int i = 0; i < 3; i++)                                                                   // multiply the array by a dt
+    {
+    d_vect_rel[i] = dt * dx[i];
+    }
+  out_array[0] = data_now[0];                                                          // this gives the time of sample now with the updated vector info
+  out_array[1] = d_vect_rel[0] + vect_past[0];
+  out_array[2] = d_vect_rel[1] + vect_past[1];
+  out_array[3] = d_vect_rel[2] + vect_past[2];
+  //Serial.println(" I made it to the calc function!");
+  return;
+}
+
+/*
 void cut_off(float out_array[]){
   // this function finds the ranges to cut off for the high pass filter
   // based off of the stationairy data. currently we will juts be finding the max and min and 
@@ -393,15 +434,7 @@ float array_min(float array[]){
   }
   return min_v;
 }
-
-
-void pos_calc(unsigned int t_0, int pos_0, float data_now[], float data_past[], float out_array[]){
-  //This function is used to find the relative position based off of the acclerometer
-  // and gyroscope data
-   float result;
-   //Serial.println(" I made it to the calc function!");
-  return;
-}
+*/
 
 void high_pass(){
   // This filters the data from the specified imu and sees if it is actually moving. This is a gate 

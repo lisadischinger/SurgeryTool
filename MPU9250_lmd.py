@@ -1,29 +1,19 @@
 #from matplotlib import pyplot
+import LMD_firmata_addon_MPU
 import numpy as np
-
-from LMD_firmata_addons import LMD_firmata_addons
-from PyMata.pymata import PyMata
 import time
-import s
-
 
 print("hello")
-board = LMD_firmata_addons('COM3')
+board = LMD_firmata_addon_MPU('COM3')
 
 # Global Variables
 a_compare = []
-bno_ready = False                               # this is a flag that states when the IMU is out puting data
+imu_ready = False               # this is a flag that states when the IMU is out puting data
 #v_compare = []
 
-x_accel = [0, 0]                                # create empty lists so that we can gather information over time;
-y_accel = [0, 0]                                    # initial values have been put in
-z_accel = [0, 0]
-x_vel = [0, 0]
-y_vel = [0, 0]
-z_vel = [0, 0]
-x_pos = [0, 0]
-y_pos = [0, 0]
-z_pos = [0, 0]
+accel = [0, 0, 0, 0]               # create empty lists so that we can gather information over time;
+vel = [0, 0, 0, 0]
+pos = [0, 0, 0, 0]
 
 x_a0 = 0
 x_a1 = 0
@@ -32,28 +22,28 @@ y_a1 = 0
 z_a0 = 0
 z_a1 = 0
 
-i = 1                                       # counter used to append to the lists and read from the lists
-                                                # 1 is already accounted for since there are the set initial conditions
+i = 1                           # counter used to append to the lists and read from the lists
+
+while True:
+    board.read_imu(imu_data)                                # gather orientation data from the imu
+    if imu_ready:                                           # make sure the imu has been initialized before calculating
+        vel_compare = calc_vel()                            # integrate the accelerometer info to calculate the velocity
+        calc_pose(vel_compare)                              # integrate the accelerometer into to find the position
+    time.sleep(1.0)
+board.close()
 
 
-def imu_data(omega, theta, zeta):
-    print(" Receiving orinetation Data [deg]")
-    #print('Omega = {0}'.format(omega))
-    #print('Theta = {0}'.format(theta))
-    #print('Zeta = {0}'.format(zeta))
-
-
-def accel_data(a_x, a_y, a_z, t):
-    global x_accel, y_accel, z_accel, i, a_compare, bno_ready
-    print(" Receiving Acceleration Data in (m/s^2)")
+def imu_data(a_x, a_y, a_z, t):
+    global accel, i, a_compare, bno_ready
+    print(" Receiving IMU Data in (m/s^2)")
     #print('x = {0}'.format(a_x))
     #print('y = {0}'.format(a_y))
     #print('z = {0}'.format(a_z))
     #print('t = {0}'.format(t))
 
-    x_accel = np.vstack([x_accel, [t, a_x]])
-    y_accel = np.vstack([y_accel, [t, a_y]])
-    z_accel = np.vstack([z_accel, [t, a_z]])
+    accel = np.vstack([a_x, [t, a_x]])
+    y_accel = np.vstack([a_y, [t, a_y]])
+    #z_accel = np.vstack([a_z, [t, a_z]])
 
     a_compare = [x_accel[i-1, :], x_accel[i, :], y_accel[i-1, :], y_accel[i, :], z_accel[i-1, :], z_accel[i, :]]
     bno_ready = True                            # if the code made it here, the imu is outputting data
@@ -61,7 +51,7 @@ def accel_data(a_x, a_y, a_z, t):
 
 def calc_vel():
     # from the gathered acceleration information, calculate the position of the IMU
-    global x_vel, y_vel, z_vel, i, a_compare
+    global vel, i, a_compare
 
     print('calculating the velocities')
     x_a0 = a_compare[0]                         # though gross, I would rather have this all be easy to follow
@@ -117,12 +107,3 @@ def calc_pose(v_compare):
     i = i+1
 
 
-while True:
-    board.read_imu(imu_data)                                # gather orientation data from the imu
-    board.read_accel(accel_data)                            # gather acceleration and time data from the imu
-    if bno_ready:                                           # make sure the imu has been initialized before calculating
-        vel_compare = calc_vel()                   # integrate the accelerometer info to calculate the velocity
-        calc_pose(vel_compare)                                  # integrate the accelerometer into to find the position
-    time.sleep(1.0)
-
-board.close()
