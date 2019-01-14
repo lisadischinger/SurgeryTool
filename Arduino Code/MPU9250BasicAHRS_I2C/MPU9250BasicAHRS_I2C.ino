@@ -41,6 +41,8 @@
   int intPin = 2;                           // These can be changed, 2 and 3 are the Arduinos ext int pins
 
 // LMD variables
+  bool StationairyRead = false;         // used to figure out the cutoff range; initially set to false just to test out the code given
+  bool CalibrateNew = false;            // set true if you want to reclibrate the sensor
   int i;                                // counter to modify data arrays
   int array_size = 15;                    // the number of rows in the data matrix
   float imu_data[15][4];  //[7];         // array of the data gathered from the gyroscope and the accelerometer; [t, ax, ay, az]  gx, gy, gz]
@@ -50,7 +52,6 @@
   //int pos_0[3] = {0, 0, 0};             // initial position and velocity of the imu
   float imu1_x[3];                      // first IMU location data
   //float imu2_x[3];                    // second IMU location data
-  bool StationairyRead = false;         // used to figure out the cutoff range; initially set to false just to test out the code given
   //float imu_data_stat[15][7];         // arrays used to collect stationary data to find the range x_accel wanders
   float cutOff[6];                      // array that holds the ranges of the stationairy data
   float t;                              //  current time
@@ -64,16 +65,14 @@ MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 AdvancedSerial AdvSerial(&Serial, 2);
 */
 
-
-
 void setup()
 {
   Wire.begin();
   Serial.begin(9600);
   // TWBR = 12;  // 400 kbit/sec I2C speed
   Wire.beginTransmission(MPU9250_ADDRESS);
-  Wire.write(0x6B);  // PWR_MGMT_1 register
-  Wire.write(0);     // set to zero (wakes up the MPU-6050)
+  Wire.write(0x6B);                             // PWR_MGMT_1 register
+  Wire.write(0);                                // set to zero (wakes up the MPU-6050)
   Wire.endTransmission(true);
  
   /*
@@ -89,13 +88,35 @@ void setup()
   digitalWrite(intPin, LOW);
   byte c = myIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
 
-  if (c == 0x71) // WHO_AM_I should always be 0x71
+  if (c == 0x71)                                                    // WHO_AM_I should always be 0x71
   {
     Serial.println(F("MPU9250 is online..."));
-
-    // Calibrate gyro and accelerometers, load biases in bias registers
-    myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);
-
+    if(CalibrateNew)
+    {
+      Serial.println(" starting to calibrate; move the IMU in a figure 8");
+      delay(4000);                                                    // wait a second to let the user start to move the MPU for clibration
+      myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);        // Calibrate gyro and accelerometers, load biases in bias registers
+      Serial.println(" Calibration is done, thanks!");
+      // record these biases so that leter on we don't always have to calibrate
+      Serial.print("gyro_bias = ");
+      for(int j = 0; j < 3-1; j++)         // incrament for the different columns
+      {
+        Serial.print(myIMU.gyroBias[j]);Serial.print(" ");
+      }
+      int j = 3-1;
+      Serial.println(myIMU.gyroBias[j]);                // the last value of the row should start a new line
+      Serial.print("accel_bias = ");
+      for(int j = 0; j < 3-1; j++)         // incrament for the different columns
+      {
+        Serial.print(myIMU.accelBias[j]);Serial.print(" ");
+      }
+      Serial.println(myIMU.accelBias[j]);                // the last value of the row should start a new line
+    }
+    else
+    {
+      myIMU.gyroBias[0] = -0.10; myIMU.gyroBias[1] = 1.67; myIMU.gyroBias[2] = 6.95;      // averaged from 1.12.19 figure 8 calibration data
+      myIMU.accelBias[0] = -0.13; myIMU.accelBias[1] = 0.07, myIMU.accelBias[2] = 0.00;
+    }
     myIMU.initMPU9250();
     // Initialize device for active mode read of acclerometer, gyroscope, and temperature
     Serial.println("MPU9250 initialized for active data mode....");
@@ -324,7 +345,8 @@ void data_gather(float out_array[]) {
 
       // Declination of SparkFun Electronics (40°05'26.6"N 105°11'05.9"W) is 8° 30' E  ± 0° 21' (or 8.5°) on 2016-07-19
       // - http://www.ngdc.noaa.gov/geomag-web/#declination
-      myIMU.yaw  -= 8.5;
+      // Declination of Graff Hall Corvalis (44.567 N, 123.270 W) is 15° 2.58' East on 2019-1-12
+      myIMU.yaw  -= 15;                 //8.5 from Spark Fun
       myIMU.roll *= RAD_TO_DEG;
 
       if(SerialDebug)
@@ -350,7 +372,6 @@ void data_gather(float out_array[]) {
 void print_array(float arrayx[][4], int rowSize, int columnSize)
 {
   // this function will print out all the values within the array
-
   for(int i = 0; i < rowSize; i++)                // incrament for the different rows
   {
     for(int j = 0; j < columnSize-1; j++)         // incrament for the different columns

@@ -11,9 +11,11 @@ a_compare = []
 imu_ready = False               # this is a flag that states when the IMU is out puting data
 #v_compare = []
 
-accel = [0, 0, 0, 0]               # create empty lists so that we can gather information over time;
-vel = [0, 0, 0, 0]
-pos = [0, 0, 0, 0]
+accel = np.zeros(shape=(1000, 4))          # create empty lists so that we can gather information over time;
+vel = np.zeros(shape=(1000, 4))
+pos = np.zeros(shape=(1000, 4))
+ang_accel = np.zeros(shape=(1000, 4))
+magn = np.zeros(shape=(1000, 4))
 
 x_a0 = 0
 x_a1 = 0
@@ -22,32 +24,38 @@ y_a1 = 0
 z_a0 = 0
 z_a1 = 0
 
-i = 1                           # counter used to append to the lists and read from the lists
+i = 0                           # counter used to append to the lists and read from the lists
 
 while True:
-    board.read_imu(imu_data)                                # gather orientation data from the imu
-    if imu_ready:                                           # make sure the imu has been initialized before calculating
-        vel_compare = calc_vel()                            # integrate the accelerometer info to calculate the velocity
-        calc_pose(vel_compare)                              # integrate the accelerometer into to find the position
+    if i<=1000:
+        board.read_imu(imu_data)                                    # gather orientation data from the imu
+    else i>1000:
+        print("done collecting data")
+    # if imu_ready:                                           # make sure the imu has been initialized before calculating
+    #     vel_compare = calc_vel()                            # integrate the accelerometer info to calculate the velocity
+    #     calc_pose(vel_compare)                              # integrate the accelerometer into to find the position
     time.sleep(1.0)
 board.close()
 
 
-def imu_data(a_x, a_y, a_z, t):
-    global accel, i, a_compare, bno_ready
+def imu_data(t, a_x, a_y, a_z, g_x, g_y, g_z, m_x, m_y, m_z):
+    global accel, i, ang_accel, magn, bno_ready
     print(" Receiving IMU Data in (m/s^2)")
-    #print('x = {0}'.format(a_x))
-    #print('y = {0}'.format(a_y))
-    #print('z = {0}'.format(a_z))
-    #print('t = {0}'.format(t))
+    accel[i] = [t, a_x, a_y, a_z]
+    ang_accel[i] = [t, g_x, g_y, g_z]
+    magn[i] = [t, m_x, m_y, m_z]
 
-    accel = np.vstack([a_x, [t, a_x]])
-    y_accel = np.vstack([a_y, [t, a_y]])
-    #z_accel = np.vstack([a_z, [t, a_z]])
+    print(*accel[i], sep=", ")
+    print(*ang_accel[i], sep=", ")
+    print(*magn[i], sep=", ")
+    # print('accel = {0}'.format(accel))
+    # print('y = {0}'.format(a_y))
+    # print('z = {0}'.format(a_z))
+    # print('t = {0}'.format(t))
 
     a_compare = [x_accel[i-1, :], x_accel[i, :], y_accel[i-1, :], y_accel[i, :], z_accel[i-1, :], z_accel[i, :]]
     bno_ready = True                            # if the code made it here, the imu is outputting data
-
+    i = i+1                                     # increment i so that new data is put into a new row
 
 def calc_vel():
     # from the gathered acceleration information, calculate the position of the IMU

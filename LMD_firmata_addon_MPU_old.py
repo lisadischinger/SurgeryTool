@@ -35,14 +35,14 @@ class LMD_firmata_addons(PyMata):
         return (data[0] & 0x7F) | ((data[1] & 0x01) << 7)
 
     def _parse_firmata_float(self, data):
-        """Parse a 4 byte floating point value from a 7-bit byte firmata response byte array.  Each pair of firmata
+        """Parse a 2 byte floating point value from a 7-bit byte firmata response byte array.  Each pair of firmata
         7-bit response bytes represents a single byte of float data so there should be 8 firmata response bytes total.
         """
-        if len(data) != 8:
+        if len(data) != 4:                      #8:
             raise ValueError('Expected 8 bytes of firmata response for floating point value!')
         # Convert 2 7-bit bytes in little endian format to 1 8-bit byte for each of the four floating point bytes.
-        raw_bytes = bytearray(4)
-        for i in range(4):
+        raw_bytes = bytearray(2)                #(4)
+        for i in range(2):                      #(4):
             raw_bytes[i] = self._parse_firmata_byte(data[i * 2:i * 2 + 2])
         return struct.unpack('<f', raw_bytes)[0]        # Use struct unpack to convert to floating point value.
 
@@ -70,16 +70,22 @@ class LMD_firmata_addons(PyMata):
         command = data[0] & 0x7F
         if command == LMD_IMU_READ_REPLY:
             # Parse IMU response.
-            if len(data) < 9:
+            if len(data) < 42:
                 logger.warning('Received IMU response with not enough data!')
                 print(' received the IMU information')
                 return
-            t = self._parse_firmata_float(data[0:1])
-            a_x = self._parse_firmata_float(data[2:6])
-            a_y = self._parse_firmata_float(data[6:10])
-            a_z = self._parse_firmata_float(data[10:14])
+            t = self._parse_firmata_float(data[2:6])
+            a_x = self._parse_firmata_float(data[6:10])
+            a_y = self._parse_firmata_float(data[10:14])
+            a_z = self._parse_firmata_float(data[14:18])
+            g_x = self._parse_firmata_float(data[18:22])
+            g_y = self._parse_firmata_float(data[22:26])
+            g_z = self._parse_firmata_float(data[26:30])
+            m_x = self._parse_firmata_float(data[30:34])
+            m_y = self._parse_firmata_float(data[34:38])
+            m_z = self._parse_firmata_float(data[38:42])
             if self._imu_callback is not None:
-                self._imu_callback(t, a_x, a_yomega, theta, zeta)
+                self._imu_callback(t, a_x, a_y, a_z, g_x, g_y, g_z, m_x, m_y, m_z)
 
         # elif command == LMD_IMU_READ_REPLY:         # Parse accelerometer response.
         #     if len(data) < 34:
@@ -101,21 +107,10 @@ class LMD_firmata_addons(PyMata):
             logger.warning('Received unexpected response!')
 
     def read_imu(self, callback):
-        """Request an accelerometer reading.  The result will be returned by
-        calling the provided callback function and passing it 3 parameters:
-            - Omega angle
-            - theta angle
-            - Zeta angle
+        """Request an IMU reading.  The result will be returned by
+        calling the provided callback function and passing it 3 parameters for
+        each the accelerometer, gyroscope, and magnetometer
             """
         self._imu_callback = callback
         self._command_handler.send_sysex(LMD_COMMAND, [LMD_IMU_READ])
 
-    def read_accel(self, callback):
-        """Request an accelerometer reading.  The result will be returned by
-        calling the provided callback function and passing it 3 parameters:
-            - X  angular acceleration
-            - Y angular acceleration
-            - Z angular acceleration
-            """
-        self._accel_callback = callback
-        self._command_handler.send_sysex(LMD_COMMAND, [LMD_ACCEL_READ])
